@@ -957,11 +957,7 @@ pub fn conversation_message_subscription(
                                         let start = received_message_count as i32;
                                         let end = start + messages_per_page as i32;
                                         match fire_retry_request(
-                                            &conn,
-                                            &device_id,
-                                            thread_id,
-                                            start,
-                                            end,
+                                            &conn, &device_id, thread_id, start, end,
                                         )
                                         .await
                                         {
