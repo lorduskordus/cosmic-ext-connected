@@ -24,6 +24,7 @@ flatpak uninstall $APPID -y 2>/dev/null || true
 flatpak-builder --force-clean --repo=repo build-dir $APPID.json
 
 # Bundle into a single .flatpak file
-flatpak build-bundle repo ${NAME}_${VERSION}.flatpak $APPID
+flatpak build-bundle repo ${NAME}_${VERSION}.flatpak $APPID \
+  --runtime-repo=https://flathub.org/repo/flathub.flatpakrepo
 
 echo "Created ${NAME}_${VERSION}.flatpak"
