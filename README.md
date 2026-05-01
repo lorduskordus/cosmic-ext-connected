@@ -6,7 +6,7 @@ A phone connectivity applet for the [COSMIC](https://github.com/pop-os/cosmic-ep
 
 ## Features
 
-- **Device Management** - Pair, unpair, and monitor connected devices
+- **Device Management** - Pair, unpair, and monitor connected devices (phones, tablets, laptops, desktops)
 - **SMS Messaging** - View conversations, reply, and compose new messages with contact lookup
 - **File Sharing** - Send and receive files and URLs, with desktop notifications
 - **Clipboard Sync** - Send clipboard content to your device
