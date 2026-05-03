@@ -12,9 +12,10 @@ use cosmic::widget::{self, text};
 use cosmic::Element;
 use kdeconnect_dbus::contacts::ContactLookup;
 use kdeconnect_dbus::plugins::{
-    is_address_valid, Attachment, ConversationSummary, MessageType, SmsMessage,
+    is_address_valid, Attachment, MessageType, SmsMessage,
     OPTIMISTIC_MESSAGE_UID,
 };
+use crate::sms::logical::LogicalConversation;
 
 // --- Helper functions for loading state ---
 
@@ -144,7 +145,7 @@ fn view_attachment<'a>(
 /// Parameters for the conversation list view.
 pub struct ConversationListParams<'a> {
     pub device_name: Option<&'a str>,
-    pub conversations: &'a [ConversationSummary],
+    pub conversations: &'a [LogicalConversation],
     pub conversations_displayed: usize,
     pub contacts: &'a ContactLookup,
     pub loading_state: &'a SmsLoadingState,
@@ -225,11 +226,11 @@ pub fn view_conversation_list(params: ConversationListParams<'_>) -> Element<'_,
             .take(params.conversations_displayed)
         {
             let display_name = params.contacts.get_group_display_name(&conv.addresses, 3);
-            let date_str = format_timestamp(conv.timestamp);
+            let date_str = format_timestamp(conv.last_message_timestamp);
 
             // Build snippet: show attachment indicator if needed
             let snippet_element: Element<Message> =
-                if conv.has_attachments && conv.last_message.is_empty() {
+                if conv.has_attachments && conv.last_message_preview.is_empty() {
                     // MMS with only attachments (no text body)
                     row![
                         widget::icon::from_name("mail-attachment-symbolic").size(14),
@@ -241,7 +242,7 @@ pub fn view_conversation_list(params: ConversationListParams<'_>) -> Element<'_,
                     .into()
                 } else if conv.has_attachments {
                     // MMS with both text and attachments
-                    let snippet = conv.last_message.chars().take(50).collect::<String>();
+                    let snippet = conv.last_message_preview.chars().take(50).collect::<String>();
                     row![
                         widget::icon::from_name("mail-attachment-symbolic").size(14),
                         text::caption(snippet).wrapping(cosmic::iced::widget::text::Wrapping::None),
@@ -250,7 +251,7 @@ pub fn view_conversation_list(params: ConversationListParams<'_>) -> Element<'_,
                     .align_y(Alignment::Center)
                     .into()
                 } else {
-                    let snippet = conv.last_message.chars().take(50).collect::<String>();
+                    let snippet = conv.last_message_preview.chars().take(50).collect::<String>();
                     text::caption(snippet)
                         .wrapping(cosmic::iced::widget::text::Wrapping::None)
                         .into()
@@ -274,7 +275,7 @@ pub fn view_conversation_list(params: ConversationListParams<'_>) -> Element<'_,
                 .spacing(sp.space_xxs)
                 .align_y(Alignment::Center),
             )
-            .on_press(Message::OpenConversation(conv.thread_id));
+            .on_press(Message::OpenConversation(conv.primary_thread_id));
 
             conv_column = conv_column.push(conv_row);
         }

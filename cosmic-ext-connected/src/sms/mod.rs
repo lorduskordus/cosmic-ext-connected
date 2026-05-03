@@ -2,6 +2,7 @@
 
 pub mod conversation_subscription;
 pub mod fetch;
+pub mod logical;
 pub mod send;
 pub mod store;
 pub mod views;

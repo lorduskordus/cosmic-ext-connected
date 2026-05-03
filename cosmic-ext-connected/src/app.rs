@@ -1067,7 +1067,10 @@ impl Application for ConnectApplet {
                                     self.sms.last_seen_sms.insert(conv.thread_id, conv.timestamp);
                                 }
                             }
-                            self.sms.conversations = prefetched;
+                            self.sms.conversations = prefetched
+                                .into_iter()
+                                .map(crate::sms::logical::LogicalConversation::from_single)
+                                .collect();
                             self.sms.conversations_displayed = 10;
                             self.sms.sms_loading_state = SmsLoadingState::Idle;
                             self.sms.conversation_sync_active = true;
@@ -1117,7 +1120,7 @@ impl Application for ConnectApplet {
                 // Guard: need D-Bus connection and device ID for the subscription
                 if self.dbus_connection.is_some() && self.sms.sms_device_id.is_some() {
                     // Find the conversation for header info and deduplication
-                    let conversation = self.sms.conversations.iter().find(|c| c.thread_id == thread_id);
+                    let conversation = self.sms.conversations.iter().find(|lc| lc.primary_thread_id == thread_id);
 
                     let addresses = conversation.map(|c| c.addresses.clone());
 

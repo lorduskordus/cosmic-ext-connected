@@ -26,6 +26,7 @@ use kdeconnect_dbus::contacts::ContactLookup;
 use kdeconnect_dbus::plugins::{
     is_address_valid, ConversationSummary, MessageType, SmsMessage, OPTIMISTIC_MESSAGE_UID,
 };
+use crate::sms::logical::LogicalConversation;
 use kdeconnect_dbus::{normalize_phone_number, phone_suffix};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -75,7 +76,7 @@ pub struct SmsConversationStore {
     pub(crate) sms_device_name: Option<String>,
 
     // Conversation list
-    pub(crate) conversations: Vec<ConversationSummary>,
+    pub(crate) conversations: Vec<LogicalConversation>,
     pub(crate) sms_prefetch: Option<(String, Vec<ConversationSummary>)>,
     pub(crate) conversation_sync_active: bool,
     pub(crate) conversation_list_subscription_active: bool,
@@ -183,7 +184,7 @@ impl SmsConversationStore {
                     target_suffix == addr_suffix
                 })
             })
-            .map(|conv| conv.timestamp)
+            .map(|conv| conv.last_message_timestamp)
             .max()
     }
 
@@ -276,7 +277,7 @@ impl SmsConversationStore {
                         }
                     }
 
-                    self.conversations = convs;
+                    self.conversations = convs.into_iter().map(LogicalConversation::from_single).collect();
                     self.conversation_list_key = self.conversation_list_key.wrapping_add(1);
                 }
                 // Background sync complete - clear sync indicator
@@ -317,11 +318,11 @@ impl SmsConversationStore {
                 if let Some(existing) = self
                     .conversations
                     .iter_mut()
-                    .find(|c| c.thread_id == conversation.thread_id)
+                    .find(|lc| lc.primary_thread_id == conversation.thread_id)
                 {
                     // Only update if the new conversation has a newer timestamp
-                    if conversation.timestamp > existing.timestamp {
-                        *existing = conversation.clone();
+                    if conversation.timestamp > existing.last_message_timestamp {
+                        *existing = LogicalConversation::from_single(conversation.clone());
                         tracing::debug!(
                             "Updated conversation thread {} (newer timestamp)",
                             conversation.thread_id
@@ -329,13 +330,13 @@ impl SmsConversationStore {
                     }
                 } else {
                     // Insert new conversation
-                    self.conversations.push(conversation.clone());
+                    self.conversations.push(LogicalConversation::from_single(conversation.clone()));
                     tracing::debug!("Added new conversation thread {}", conversation.thread_id);
                 }
 
                 // Re-sort by timestamp (newest first) and truncate
                 self.conversations
-                    .sort_by_key(|c| std::cmp::Reverse(c.timestamp));
+                    .sort_by_key(|lc| std::cmp::Reverse(lc.last_message_timestamp));
                 self.conversations
                     .truncate(kdeconnect_dbus::plugins::MAX_CONVERSATIONS);
 
@@ -945,13 +946,13 @@ impl SmsConversationStore {
                             if let Some(conv) = self
                                 .conversations
                                 .iter_mut()
-                                .find(|c| c.thread_id == thread_id)
+                                .find(|lc| lc.primary_thread_id == thread_id)
                             {
-                                conv.last_message = sent_body;
-                                conv.timestamp = now_ms;
+                                conv.last_message_preview = sent_body;
+                                conv.last_message_timestamp = now_ms;
                             }
                             self.conversations
-                                .sort_by_key(|c| std::cmp::Reverse(c.timestamp));
+                                .sort_by_key(|lc| std::cmp::Reverse(lc.last_message_timestamp));
 
                             // Insert optimistic message if echo hasn't already arrived.
                             // sms_sending_body is cleared by confirmed_send in
