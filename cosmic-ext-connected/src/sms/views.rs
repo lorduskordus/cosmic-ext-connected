@@ -708,6 +708,7 @@ pub fn view_new_message(params: NewMessageParams<'_>) -> Element<'_, Message> {
     // Message input
     let message_input = widget::text_input(fl!("type-message"), params.body)
         .on_input(Message::NewMessageBodyInput)
+        .on_submit(|_| Message::SendNewMessage)
         .width(Length::Fill);
 
     // Send button — enabled when at least one recipient and body is non-empty
@@ -733,9 +734,9 @@ pub fn view_new_message(params: NewMessageParams<'_>) -> Element<'_, Message> {
 
     column![
         header,
-        chips_section,
         recipient_row,
         suggestions_section,
+        chips_section,
         applet::padded_control(message_input),
         send_row,
         widget::space::vertical(),
