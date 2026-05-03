@@ -8,9 +8,10 @@
 
 #![allow(dead_code)] // stub methods; remove once call sites land
 
-use crate::app::{show_and_auto_close, DeviceInfo, LoadingPhase, Message, SmsLoadingState};
+use crate::app::{DeviceInfo, LoadingPhase, Message, SmsLoadingState};
 use crate::config::Config;
 use crate::fl;
+use crate::notifications::show_and_auto_close;
 use crate::sms::{
     conversation_list_subscription, fetch_older_messages_async, request_attachment_async,
     send_new_sms_async, send_sms_async, view_conversation_list, view_message_thread,

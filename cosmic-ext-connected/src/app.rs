@@ -1459,7 +1459,7 @@ impl Application for ConnectApplet {
                             .appname("Connected")
                             .urgency(urgency)
                             .timeout(notify_rust::Timeout::Never);
-                        show_and_auto_close(notification, timeout_ms, "call").await;
+                        crate::notifications::show_and_auto_close(notification, timeout_ms, "call").await;
                     },
                     |_| cosmic::Action::App(Message::RefreshDevices),
                 );
@@ -1500,7 +1500,7 @@ impl Application for ConnectApplet {
                                 .icon("folder-download-symbolic")
                                 .appname("Connected")
                                 .timeout(notify_rust::Timeout::Never);
-                            show_and_auto_close(notification, timeout_ms, "file").await;
+                            crate::notifications::show_and_auto_close(notification, timeout_ms, "file").await;
                         },
                         |_| cosmic::Action::App(Message::RefreshDevices),
                     );
@@ -1734,33 +1734,3 @@ impl Application for ConnectApplet {
     }
 }
 
-/// Show a notification and auto-close it after the configured timeout.
-///
-/// COSMIC's notification daemon does not respect the `expire_timeout` hint from
-/// the freedesktop notification spec, so all notifications display for the daemon's
-/// fixed duration regardless of the value passed. To work around this, notifications
-/// are created with `Timeout::Never` (expire_timeout=0) to prevent the daemon from
-/// auto-closing them, then explicitly closed after the user's configured timeout.
-pub(crate) async fn show_and_auto_close(
-    notification: notify_rust::Notification,
-    timeout_ms: u32,
-    label: &str,
-) {
-    let label = label.to_string();
-    let result = tokio::task::spawn_blocking(move || notification.show()).await;
-    match result {
-        Ok(Ok(handle)) => {
-            tokio::spawn(async move {
-                tokio::time::sleep(std::time::Duration::from_millis(timeout_ms as u64)).await;
-                // close() uses zbus::block_on internally, so run in blocking context
-                let _ = tokio::task::spawn_blocking(move || handle.close()).await;
-            });
-        }
-        Ok(Err(e)) => {
-            tracing::warn!("Failed to show {} notification: {}", label, e);
-        }
-        Err(e) => {
-            tracing::warn!("Notification task panicked: {}", e);
-        }
-    }
-}
