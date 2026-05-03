@@ -3,6 +3,7 @@
 pub mod conversation_subscription;
 pub mod fetch;
 pub mod send;
+pub mod store;
 pub mod views;
 
 pub use conversation_subscription::*;
