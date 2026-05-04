@@ -1109,6 +1109,7 @@ impl Application for ConnectApplet {
                 self.sms.current_thread_id = None;
                 self.sms.current_thread_addresses = None;
                 self.sms.current_thread_sub_id = None;
+                self.sms.current_merged_thread_ids.clear();
                 self.sms.sms_loading_state = SmsLoadingState::Idle;
                 self.sms.conversation_sync_active = false;
                 self.sms.conversation_list_subscription_active = false;
@@ -1123,6 +1124,9 @@ impl Application for ConnectApplet {
                     let conversation = self.sms.conversations.iter().find(|lc| lc.primary_thread_id == thread_id);
 
                     let addresses = conversation.map(|c| c.addresses.clone());
+                    let merged_thread_ids = conversation
+                        .map(|c| c.merged_thread_ids.clone())
+                        .unwrap_or_else(|| vec![thread_id]);
 
                     // Pre-populate last_seen_sms with current time to prevent false notifications
                     // when fetching existing messages in this thread.
@@ -1137,6 +1141,7 @@ impl Application for ConnectApplet {
 
                     self.sms.current_thread_id = Some(thread_id);
                     self.sms.current_thread_addresses = addresses;
+                    self.sms.current_merged_thread_ids = merged_thread_ids;
                     self.view_mode = ViewMode::MessageThread;
 
                     // Reset pagination state
@@ -1153,7 +1158,6 @@ impl Application for ConnectApplet {
                     // The subscription will fire the D-Bus request after setting up match rules
                     self.sms.conversation_load_active = true;
                     self.sms.initial_load_complete = false;
-                    self.sms.loading_thread_id = Some(thread_id);
 
                     // Always load through daemon to ensure its cache is primed
                     // (replyToConversation requires the daemon to have loaded the conversation)
@@ -1172,6 +1176,7 @@ impl Application for ConnectApplet {
                 self.sms.current_thread_id = None;
                 self.sms.current_thread_addresses = None;
                 self.sms.current_thread_sub_id = None;
+                self.sms.current_merged_thread_ids.clear();
                 self.sms.messages.clear();
                 self.sms.sms_compose_text.clear();
                 self.sms.sms_sending = false;
@@ -1181,7 +1186,6 @@ impl Application for ConnectApplet {
                 // Clear subscription-based loading state
                 self.sms.conversation_load_active = false;
                 self.sms.initial_load_complete = false;
-                self.sms.loading_thread_id = None;
                 self.sms.known_message_ids.clear();
 
                 // Increment key to reset scroll position

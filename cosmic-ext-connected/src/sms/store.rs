@@ -89,9 +89,13 @@ pub struct SmsConversationStore {
     pub(crate) initial_load_complete: bool,
 
     // Active thread
-    pub(crate) loading_thread_id: Option<i64>,
     pub(crate) known_message_ids: HashSet<i32>,
     pub(crate) current_thread_id: Option<i64>,
+    /// All underlying SMS thread IDs composing the currently-open
+    /// `LogicalConversation`. Always contains `current_thread_id` (the primary)
+    /// when a conversation is open; empty otherwise. Drives the per-thread
+    /// message subscription fan-out in `subscriptions()`.
+    pub(crate) current_merged_thread_ids: Vec<i64>,
     pub(crate) current_thread_addresses: Option<Vec<String>>,
     pub(crate) current_thread_sub_id: Option<i64>,
     pub(crate) messages: Vec<SmsMessage>,
@@ -140,9 +144,9 @@ impl SmsConversationStore {
             message_sync_active: false,
             conversation_load_active: false,
             initial_load_complete: false,
-            loading_thread_id: None,
             known_message_ids: HashSet::new(),
             current_thread_id: None,
+            current_merged_thread_ids: Vec::new(),
             current_thread_addresses: None,
             current_thread_sub_id: None,
             messages: Vec::new(),
@@ -172,6 +176,26 @@ impl SmsConversationStore {
     /// Check if loading more messages (pagination)
     pub(crate) fn is_loading_more_messages(&self) -> bool {
         matches!(self.sms_loading_state, SmsLoadingState::LoadingMoreMessages)
+    }
+
+    /// Decide whether older messages are likely available for prefetch.
+    ///
+    /// For single-thread conversations, prefer the daemon-reported
+    /// `total_count` when available (`conversationLoaded` payload) and fall
+    /// back to a page-size heuristic otherwise. For merged conversations the
+    /// per-thread `total_count` is incomparable to the union
+    /// `self.messages.len()` (each subscription reports its own thread's
+    /// store size), so use heuristic-only — accurate-enough and avoids the
+    /// staggered-completion flicker where one subscription's small
+    /// `total_count` would falsely clamp `messages_has_more` to false.
+    fn compute_messages_has_more(&self, total_count: u64, page_size: usize) -> bool {
+        if self.current_merged_thread_ids.len() > 1 {
+            self.messages.len() >= page_size
+        } else if total_count > 0 && (self.messages.len() as u64) < total_count {
+            true
+        } else {
+            self.messages.len() >= page_size
+        }
     }
 
     /// Re-derive `conversations` from the raw cache through the merge
@@ -471,7 +495,7 @@ impl SmsConversationStore {
                     self.sms_loading_state = SmsLoadingState::Idle;
                 }
 
-                if self.current_thread_id == Some(thread_id) {
+                if self.current_merged_thread_ids.contains(&thread_id) {
                     // Filter out messages already known (safety net for signal cross-talk)
                     let older_msgs: Vec<_> = older_msgs
                         .into_iter()
@@ -654,8 +678,10 @@ impl SmsConversationStore {
 
             // Subscription-based message loading handlers
             Message::ConversationLoadStarted { thread_id } => {
-                // D-Bus request fired, subscription is now active
-                if self.current_thread_id == Some(thread_id) {
+                // D-Bus request fired, subscription is now active.
+                // Accept signals from any thread in the open merged set so
+                // every fanned-out subscription can flip the loading phase.
+                if self.current_merged_thread_ids.contains(&thread_id) {
                     tracing::debug!(
                         "Conversation {} load started, waiting for subscription signals",
                         thread_id
@@ -672,12 +698,15 @@ impl SmsConversationStore {
                 (cosmic::app::Task::none(), SmsReply::NoOp)
             }
             Message::ConversationMessageReceived { thread_id, message } => {
-                // Guard: Only process if still viewing this thread
-                if self.current_thread_id != Some(thread_id) {
+                // Guard: accept messages from any thread in the open merged set.
+                // Reactions split into bucket threads arrive on a different
+                // threadId than the primary; rejecting them here is the source
+                // of the orphaned-reactions UX bug from M7's smoke test.
+                if !self.current_merged_thread_ids.contains(&thread_id) {
                     tracing::debug!(
-                        "Ignoring message for thread {} (current: {:?})",
+                        "Ignoring message for thread {} (open merged set: {:?})",
                         thread_id,
-                        self.current_thread_id
+                        self.current_merged_thread_ids
                     );
                     return (cosmic::app::Task::none(), SmsReply::NoOp);
                 }
@@ -790,8 +819,10 @@ impl SmsConversationStore {
                 total_count,
             } => {
                 // Local store read complete - scroll to show messages while
-                // continuing to listen for phone response data
-                if self.current_thread_id != Some(thread_id) {
+                // continuing to listen for phone response data. Each fanned-out
+                // subscription emits its own ConversationStoreLoaded; accept any
+                // signal whose thread is in the open merged set.
+                if !self.current_merged_thread_ids.contains(&thread_id) {
                     return (cosmic::app::Task::none(), SmsReply::NoOp);
                 }
 
@@ -802,17 +833,12 @@ impl SmsConversationStore {
                     total_count
                 );
 
-                // Update pagination state
-                // Note: total_count from conversationLoaded reflects the LOCAL store count,
-                // which may be 0 or 1 after a reboot. Use a heuristic instead: if we've
-                // loaded a full page, there are likely more messages available.
+                // Update pagination state via helper (handles merged-set math).
                 self.messages_loaded_count = self.messages.len() as u32;
-                self.messages_has_more =
-                    if total_count > 0 && (self.messages.len() as u64) < total_count {
-                        true
-                    } else {
-                        self.messages.len() >= ctx.config.messages_per_page as usize
-                    };
+                self.messages_has_more = self.compute_messages_has_more(
+                    total_count,
+                    ctx.config.messages_per_page as usize,
+                );
 
                 // Scroll to bottom to show latest messages
                 if !self.messages.is_empty() {
@@ -830,39 +856,41 @@ impl SmsConversationStore {
                 thread_id,
                 total_count,
             } => {
-                // Guard: Only process if still viewing this thread
-                if self.current_thread_id != Some(thread_id) {
+                // Guard: accept completion signal from any thread in the open
+                // merged set. Each fanned-out subscription emits its own
+                // ConversationLoadComplete; step 3 will make the body
+                // idempotent so repeat arrivals don't redo work or break the
+                // messages_has_more math.
+                if !self.current_merged_thread_ids.contains(&thread_id) {
                     tracing::debug!(
-                        "Ignoring load complete for thread {} (current: {:?})",
+                        "Ignoring load complete for thread {} (open merged set: {:?})",
                         thread_id,
-                        self.current_thread_id
+                        self.current_merged_thread_ids
                     );
                     return (cosmic::app::Task::none(), SmsReply::NoOp);
                 }
 
+                let was_already_complete = self.initial_load_complete;
+
                 tracing::info!(
-                    "Conversation {} loading complete: {} messages loaded, {} total in conversation",
+                    "Conversation {} loading complete: {} messages loaded, {} total in conversation \
+                     (already_complete={})",
                     thread_id,
                     self.messages.len(),
-                    total_count
+                    total_count,
+                    was_already_complete
                 );
 
-                // Messages are already sorted during insertion, but sort again as safety
+                // Idempotent state refresh — safe to redo on each completion in
+                // a merged set (one ConversationLoadComplete per fanned-out
+                // subscription). Sort + pagination math + last_seen_sms all
+                // converge on the same final values regardless of arrival order.
                 self.messages.sort_by_key(|m| m.date);
-
-                // Update pagination state
-                // Note: total_count from conversationLoaded reflects the LOCAL store count,
-                // not the phone's total. Use a heuristic: if we've loaded a full page
-                // worth of messages, there are likely more available.
                 self.messages_loaded_count = self.messages.len() as u32;
-                self.messages_has_more =
-                    if total_count > 0 && (self.messages.len() as u64) < total_count {
-                        true
-                    } else {
-                        self.messages.len() >= ctx.config.messages_per_page as usize
-                    };
-
-                // Update last_seen_sms with the newest message timestamp
+                self.messages_has_more = self.compute_messages_has_more(
+                    total_count,
+                    ctx.config.messages_per_page as usize,
+                );
                 if let Some(newest) = self.messages.iter().map(|m| m.date).max() {
                     let current = self.last_seen_sms.get(&thread_id).copied();
                     if current.is_none() || current < Some(newest) {
@@ -870,13 +898,20 @@ impl SmsConversationStore {
                     }
                 }
 
-                // Clear sync indicator and loading state. The subscription keeps
-                // running to catch new messages (including sent message echoes).
+                // First-completion-only effects: clear loading indicators and
+                // snap to the latest message. Skipping these on repeat
+                // arrivals avoids yanking the user back to the bottom if a
+                // late-completing subscription fires after they've started
+                // scrolling. Note: subscriptions keep running to catch new
+                // messages (including sent-message echoes).
+                if was_already_complete {
+                    return (cosmic::app::Task::none(), SmsReply::NoOp);
+                }
+
                 self.message_sync_active = false;
                 self.initial_load_complete = true;
                 self.sms_loading_state = SmsLoadingState::Idle;
 
-                // Scroll to bottom if we loaded messages
                 if !self.messages.is_empty() {
                     return (
                         scrollable::snap_to(
@@ -1355,27 +1390,31 @@ impl SmsConversationStore {
             }
         }
 
-        // Per-thread message subscription (incremental message loading)
+        // Per-thread message subscription (incremental message loading).
+        // Fans out one subscription per underlying thread in the open
+        // `LogicalConversation` so reactions split into bucket threads load
+        // alongside the primary. iced keys subscriptions on the id tuple, so
+        // distinct `thread_id` values produce distinct running subscriptions.
         if self.conversation_load_active {
-            if let (Some(thread_id), Some(device_id)) =
-                (self.loading_thread_id, self.sms_device_id.clone())
-            {
+            if let Some(device_id) = self.sms_device_id.clone() {
                 let messages_per_page = config.messages_per_page;
-                subs.push(Subscription::run_with(
-                    (
-                        "conversation_messages",
-                        thread_id,
-                        device_id.clone(),
-                        messages_per_page,
-                    ),
-                    |(_, thread_id, device_id, messages_per_page)| {
-                        conversation_message_subscription(
-                            *thread_id,
+                for &thread_id in &self.current_merged_thread_ids {
+                    subs.push(Subscription::run_with(
+                        (
+                            "conversation_messages",
+                            thread_id,
                             device_id.clone(),
-                            *messages_per_page,
-                        )
-                    },
-                ));
+                            messages_per_page,
+                        ),
+                        |(_, thread_id, device_id, messages_per_page)| {
+                            conversation_message_subscription(
+                                *thread_id,
+                                device_id.clone(),
+                                *messages_per_page,
+                            )
+                        },
+                    ));
+                }
             }
         }
 

@@ -7,13 +7,6 @@
 //! See `Reaction Thread Splitting - Investigation and Fix Approach.md`
 //! for the design rationale and Phase 1B-validated heuristic.
 
-// `merged_thread_ids`, `subscription_id`, `unread_count` are populated by
-// `merge_group` but not yet read; M8 (multi-thread subscription) and M11
-// (mark-as-read fan-out) light them up. `is_reaction_bucket` is the
-// pairwise-equivalent of the bucketing in `merge_into_logical`, kept as a
-// public predicate for tests and the future split-by-case reply rule.
-#![allow(dead_code)]
-
 use std::collections::{BTreeSet, HashMap};
 
 use kdeconnect_dbus::plugins::ConversationSummary;
@@ -33,6 +26,7 @@ pub struct LogicalConversation {
     pub merged_thread_ids: Vec<i64>,
     /// SIM subscription ID. Merge never crosses subID boundaries, so all
     /// threads in `merged_thread_ids` share this value.
+    #[allow(dead_code)] // Read at M9 (split-by-case reply rule).
     pub subscription_id: i64,
     /// Union of every underlying thread's address-set, deduplicated by
     /// canonical (digit-only) form. Original carrier formatting preserved
@@ -45,6 +39,7 @@ pub struct LogicalConversation {
     /// Whether the most recent message is an MMS with attachments.
     pub has_attachments: bool,
     /// Sum of underlying threads currently flagged unread.
+    #[allow(dead_code)] // Read at M11 (mark-as-read fan-out).
     pub unread_count: usize,
 }
 
@@ -101,6 +96,7 @@ pub(crate) fn canonical_set(addresses: &[String]) -> Vec<String> {
 /// pair was symmetric, and the conversation-summary-level body field is too
 /// sparse to drive the reaction-pattern check that the subset clause needs.
 /// Revisit once richer per-message context is available.
+#[allow(dead_code)] // Called at M9 (split-by-case reply rule); covered by tests today.
 pub(crate) fn is_reaction_bucket(a: &ConversationSummary, b: &ConversationSummary) -> bool {
     if a.sub_id == -1 || b.sub_id == -1 {
         return false;
