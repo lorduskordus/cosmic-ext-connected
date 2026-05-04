@@ -26,7 +26,7 @@ use kdeconnect_dbus::contacts::ContactLookup;
 use kdeconnect_dbus::plugins::{
     is_address_valid, ConversationSummary, MessageType, SmsMessage, OPTIMISTIC_MESSAGE_UID,
 };
-use crate::sms::logical::LogicalConversation;
+use crate::sms::logical::{merge_into_logical, LogicalConversation};
 use kdeconnect_dbus::{normalize_phone_number, phone_suffix};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -76,6 +76,10 @@ pub struct SmsConversationStore {
     pub(crate) sms_device_name: Option<String>,
 
     // Conversation list
+    /// Raw per-thread conversations from the daemon. Source of truth for the
+    /// derived `conversations` list — the toggle (M13) and any reaction-bucket
+    /// re-derivation works off this cache without re-fetching.
+    pub(crate) raw_conversations: Vec<ConversationSummary>,
     pub(crate) conversations: Vec<LogicalConversation>,
     pub(crate) sms_prefetch: Option<(String, Vec<ConversationSummary>)>,
     pub(crate) conversation_sync_active: bool,
@@ -128,6 +132,7 @@ impl SmsConversationStore {
         Self {
             sms_device_id: None,
             sms_device_name: None,
+            raw_conversations: Vec::new(),
             conversations: Vec::new(),
             sms_prefetch: None,
             conversation_sync_active: false,
@@ -167,6 +172,13 @@ impl SmsConversationStore {
     /// Check if loading more messages (pagination)
     pub(crate) fn is_loading_more_messages(&self) -> bool {
         matches!(self.sms_loading_state, SmsLoadingState::LoadingMoreMessages)
+    }
+
+    /// Re-derive `conversations` from the raw cache through the merge
+    /// heuristic. Call after any mutation of `raw_conversations`. M13 will
+    /// thread the user toggle through the call site.
+    fn rederive_conversations(&mut self) {
+        self.conversations = merge_into_logical(&self.raw_conversations);
     }
 
     /// Find the latest conversation timestamp for a phone number.
@@ -277,7 +289,8 @@ impl SmsConversationStore {
                         }
                     }
 
-                    self.conversations = convs.into_iter().map(LogicalConversation::from_single).collect();
+                    self.raw_conversations = convs;
+                    self.rederive_conversations();
                     self.conversation_list_key = self.conversation_list_key.wrapping_add(1);
                 }
                 // Background sync complete - clear sync indicator
@@ -314,31 +327,34 @@ impl SmsConversationStore {
                     return (cosmic::app::Task::none(), SmsReply::NoOp);
                 }
 
-                // Update or insert conversation by thread_id
+                // Upsert into raw cache by underlying thread_id. Re-derive
+                // logical conversations after — incremental upsert on the
+                // logical list would create duplicate groups when a new
+                // thread joins an existing reaction-bucket merge.
                 if let Some(existing) = self
-                    .conversations
+                    .raw_conversations
                     .iter_mut()
-                    .find(|lc| lc.primary_thread_id == conversation.thread_id)
+                    .find(|cs| cs.thread_id == conversation.thread_id)
                 {
-                    // Only update if the new conversation has a newer timestamp
-                    if conversation.timestamp > existing.last_message_timestamp {
-                        *existing = LogicalConversation::from_single(conversation.clone());
+                    if conversation.timestamp > existing.timestamp {
+                        *existing = conversation.clone();
                         tracing::debug!(
                             "Updated conversation thread {} (newer timestamp)",
                             conversation.thread_id
                         );
                     }
                 } else {
-                    // Insert new conversation
-                    self.conversations.push(LogicalConversation::from_single(conversation.clone()));
+                    self.raw_conversations.push(conversation.clone());
                     tracing::debug!("Added new conversation thread {}", conversation.thread_id);
                 }
 
-                // Re-sort by timestamp (newest first) and truncate
-                self.conversations
-                    .sort_by_key(|lc| std::cmp::Reverse(lc.last_message_timestamp));
-                self.conversations
+                // Re-sort raw cache by timestamp (newest first) and truncate.
+                self.raw_conversations
+                    .sort_by_key(|cs| std::cmp::Reverse(cs.timestamp));
+                self.raw_conversations
                     .truncate(kdeconnect_dbus::plugins::MAX_CONVERSATIONS);
+
+                self.rederive_conversations();
 
                 // Update last_seen for notification deduplication
                 let current = self.last_seen_sms.get(&conversation.thread_id).copied();
@@ -938,21 +954,20 @@ impl SmsConversationStore {
                                 .map(|d| d.as_millis() as i64)
                                 .unwrap_or(0);
 
-                            // Clone before move into conversation preview
-                            let optimistic_body = sent_body.clone();
-
-                            // Update conversation list preview so it reflects the new message
-                            // when user navigates back
-                            if let Some(conv) = self
-                                .conversations
+                            // Update raw cache preview so an interim re-derive
+                            // (e.g. ConversationReceived for an unrelated thread)
+                            // can't clobber the optimistic update.
+                            if let Some(raw) = self
+                                .raw_conversations
                                 .iter_mut()
-                                .find(|lc| lc.primary_thread_id == thread_id)
+                                .find(|cs| cs.thread_id == thread_id)
                             {
-                                conv.last_message_preview = sent_body;
-                                conv.last_message_timestamp = now_ms;
+                                raw.last_message = sent_body.clone();
+                                raw.timestamp = now_ms;
                             }
-                            self.conversations
-                                .sort_by_key(|lc| std::cmp::Reverse(lc.last_message_timestamp));
+                            self.raw_conversations
+                                .sort_by_key(|cs| std::cmp::Reverse(cs.timestamp));
+                            self.rederive_conversations();
 
                             // Insert optimistic message if echo hasn't already arrived.
                             // sms_sending_body is cleared by confirmed_send in
@@ -960,7 +975,7 @@ impl SmsConversationStore {
                             // SmsSendResult — skip to avoid duplicate.
                             if self.sms_sending_body.is_some() {
                                 let optimistic = SmsMessage {
-                                    body: optimistic_body,
+                                    body: sent_body,
                                     addresses: self
                                         .current_thread_addresses
                                         .clone()
