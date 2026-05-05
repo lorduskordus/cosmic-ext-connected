@@ -196,11 +196,20 @@ impl SmsConversationStore {
         }
     }
 
-    /// Re-derive `conversations` from the raw cache through the merge
-    /// heuristic. Call after any mutation of `raw_conversations`. M13 will
-    /// thread the user toggle through the call site.
-    fn rederive_conversations(&mut self) {
-        self.conversations = merge_into_logical(&self.raw_conversations);
+    /// Re-derive `conversations` from the raw cache. Honors
+    /// `config.merge_reaction_threads`: runs `merge_into_logical` when on;
+    /// falls back to 1:1 `from_single` wrapping when off. Call after any
+    /// mutation of `raw_conversations`, or after the toggle changes.
+    pub(crate) fn rederive_conversations(&mut self, config: &Config) {
+        self.conversations = if config.merge_reaction_threads {
+            merge_into_logical(&self.raw_conversations)
+        } else {
+            self.raw_conversations
+                .iter()
+                .cloned()
+                .map(LogicalConversation::from_single)
+                .collect()
+        };
     }
 
     /// Find the `LogicalConversation` containing `thread_id` (whether as
@@ -346,7 +355,7 @@ impl SmsConversationStore {
                     }
 
                     self.raw_conversations = convs;
-                    self.rederive_conversations();
+                    self.rederive_conversations(ctx.config);
                     self.conversation_list_key = self.conversation_list_key.wrapping_add(1);
                 }
                 // Background sync complete - clear sync indicator
@@ -410,7 +419,7 @@ impl SmsConversationStore {
                 self.raw_conversations
                     .truncate(kdeconnect_dbus::plugins::MAX_CONVERSATIONS);
 
-                self.rederive_conversations();
+                self.rederive_conversations(ctx.config);
 
                 // Update last_seen for notification deduplication
                 let current = self.last_seen_sms.get(&conversation.thread_id).copied();
@@ -1035,7 +1044,7 @@ impl SmsConversationStore {
                             }
                             self.raw_conversations
                                 .sort_by_key(|cs| std::cmp::Reverse(cs.timestamp));
-                            self.rederive_conversations();
+                            self.rederive_conversations(ctx.config);
 
                             // Insert optimistic message if echo hasn't already arrived.
                             // sms_sending_body is cleared by confirmed_send in

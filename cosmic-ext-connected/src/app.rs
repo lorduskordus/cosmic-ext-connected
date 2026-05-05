@@ -291,6 +291,7 @@ pub enum SettingKey {
     CallShowNumber,
     CallShowName,
     FileNotifications,
+    MergeReactionThreads,
 }
 
 /// Basic device information for display.
@@ -982,6 +983,11 @@ impl Application for ConnectApplet {
                     }
                     SettingKey::FileNotifications => {
                         self.config.file_notifications = !self.config.file_notifications;
+                    }
+                    SettingKey::MergeReactionThreads => {
+                        self.config.merge_reaction_threads =
+                            !self.config.merge_reaction_threads;
+                        self.sms.rederive_conversations(&self.config);
                     }
                 }
                 tracing::debug!("Settings updated");
