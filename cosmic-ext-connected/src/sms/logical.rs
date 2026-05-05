@@ -38,7 +38,7 @@ pub struct LogicalConversation {
     /// Whether the most recent message is an MMS with attachments.
     pub has_attachments: bool,
     /// Sum of underlying threads currently flagged unread.
-    #[allow(dead_code)] // Read at M11 (mark-as-read fan-out).
+    #[allow(dead_code)] // M11 deferred to v0.6.0+; field lights up with the unread display work.
     pub unread_count: usize,
 }
 
