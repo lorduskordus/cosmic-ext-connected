@@ -61,6 +61,27 @@ Important details:
   - **Fallback**: `phone_deadline` expires with `received <= 1` — used if the daemon doesn't re-emit `conversationLoaded` (e.g. the phone added no new UIDs, or a signal-ordering race). Narrow gate kept here on purpose: if no duplicate fired, retry against an unchanged store would just re-deliver what we already have.
   The retry uses `requestConversation(threadId, received, received + page)` — same offset shape as KDE Connect's `ConversationModel::requestMoreMessages`. The resulting per-message signals merge via `known_message_ids` dedup in `app.rs`.
 
+### Reaction-Thread Merging
+
+iOS reactions over SMS arrive on slightly different address-sets and AOSP buckets them into a separate `threadId`. The phone re-merges visually; KDE Connect / Connected report them separately. Connected wraps each user-perceived conversation in a `LogicalConversation` (`sms/logical.rs`) that may collapse multiple underlying SMS threadIds.
+
+Merging precondition (`is_reaction_bucket`):
+
+- both `sub_id`s are non-`-1` and equal, AND
+- canonical address-sets are equal (digit-only normalize, leading-`1` stripped, deduplicated as a set).
+
+Each `LogicalConversation` carries:
+
+- `primary_thread_id` — the most-recently-active sibling within the merged set; used as the reply target (M9) and notification dedup key (M12).
+- `merged_thread_ids` — all underlying threadIds composing this logical conversation. Always contains `primary_thread_id`. Single-element for non-merged.
+
+Opening a merged conversation fans out the message subscription: one `conversation_message_subscription` per underlying threadId, each firing its own `requestConversation` and emitting `ConversationMessageReceived` for its own thread. Signal handlers accept any thread in the open `current_merged_thread_ids` set rather than only the primary.
+
+Multi-subscription completion semantics:
+
+- `ConversationLoadComplete` is idempotent. Math (sort, `messages_has_more`, `last_seen_sms`) always runs; loading-state clear and scroll-to-bottom snap fire only on the first arrival. Late completions silently refresh stats so a slow-completing subscription can't yank the user back to bottom.
+- `messages_has_more` math forces a heuristic-only branch when `current_merged_thread_ids.len() > 1`, since per-thread `total_count` is incomparable to the union `messages.len()`.
+
 ### Older Message Loading
 
 Older messages are loaded automatically when the user scrolls near the top of the thread.
@@ -68,6 +89,8 @@ Older messages are loaded automatically when the user scrolls near the top of th
 - Scroll position and content height are captured before the fetch.
 - Older messages are prepended when they arrive.
 - Scroll offset is adjusted so the user stays anchored near the same visible messages.
+
+For merged conversations, scroll prefetch fires only against `primary_thread_id`. Older messages from secondary `merged_thread_ids` are not backfilled on scroll. Captured smoke-test cases (NM, FH, Pair 1) have all user-visible orphaned reactions within `messages_per_page = 50` of the open, so initial-load fan-out covers them. Fanning out scroll prefetch is a deferred follow-up.
 
 ## Sending Behavior
 
@@ -115,6 +138,7 @@ Caching behavior:
 - Reply sending still depends on daemon cache priming before `replyToConversation` can work reliably.
 - Group-message behavior remains subject to KDE Connect limitations documented in `docs/KNOWN_ISSUES.md`.
 - Notification correctness depends on careful `last_seen_sms` handling when opening threads and merging incoming data.
+- For merged (reaction-bucket) conversations, scroll prefetch fires only against the primary threadId; older messages from secondary merged threads are not backfilled on scroll.
 
 ## Reference
 
