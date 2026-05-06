@@ -33,6 +33,7 @@ anyhow = "1"
 
 # Logging
 tracing = "0.1"
+tracing-journald = "0.3"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Internationalization

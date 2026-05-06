@@ -18,11 +18,24 @@ mod views;
 use app::ConnectApplet;
 
 fn main() -> cosmic::iced::Result {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive("cosmic_ext_connected=info".parse().unwrap()),
-        )
+    use std::io::IsTerminal;
+    use tracing_subscriber::layer::SubscriberExt;
+    use tracing_subscriber::util::SubscriberInitExt;
+    use tracing_subscriber::{fmt, EnvFilter};
+
+    let filter =
+        EnvFilter::from_default_env().add_directive("cosmic_ext_connected=info".parse().unwrap());
+
+    let fmt_layer = fmt::layer()
+        .with_target(false)
+        .with_ansi(std::io::stdout().is_terminal());
+
+    let journald_layer = tracing_journald::layer().ok();
+
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(fmt_layer)
+        .with(journald_layer)
         .init();
 
     // Initialize localization

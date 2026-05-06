@@ -18,6 +18,7 @@ serde_json.workspace = true
 thiserror.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
+tracing-journald.workspace = true
 tracing-subscriber.workspace = true
 chrono.workspace = true
 base64.workspace = true
