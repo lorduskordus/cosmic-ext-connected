@@ -7,7 +7,7 @@
 //! See `Reaction Thread Splitting - Investigation and Fix Approach.md`
 //! for the design rationale and Phase 1B-validated heuristic.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use kdeconnect_dbus::plugins::ConversationSummary;
 
@@ -40,10 +40,19 @@ pub struct LogicalConversation {
     /// Sum of underlying threads currently flagged unread.
     #[allow(dead_code)] // M11 deferred to v0.6.0+; field lights up with the unread display work.
     pub unread_count: usize,
+    /// True when this conversation's underlying thread(s) participate in a
+    /// phone-side reaction-bucket group (per [`is_reaction_bucket`]).
+    /// Always true for merged entries (`merged_thread_ids.len() > 1`).
+    /// Computed per-entry on the merge-off path so the UI can mark threads
+    /// that *would* merge if the user enabled the feature, without
+    /// actually performing the merge.
+    pub is_split_candidate: bool,
 }
 
 impl LogicalConversation {
-    /// Wrap a single underlying conversation 1:1.
+    /// Wrap a single underlying conversation 1:1. Caller may overwrite
+    /// `is_split_candidate` based on whether the wrapped thread has a
+    /// reaction-bucket sibling in the broader raw-conversation set.
     pub fn from_single(cs: ConversationSummary) -> Self {
         Self {
             primary_thread_id: cs.thread_id,
@@ -54,6 +63,7 @@ impl LogicalConversation {
             last_message_timestamp: cs.timestamp,
             has_attachments: cs.has_attachments,
             unread_count: if cs.unread { 1 } else { 0 },
+            is_split_candidate: false,
         }
     }
 }
@@ -209,8 +219,33 @@ fn merge_group(mut threads: Vec<&ConversationSummary>) -> LogicalConversation {
         last_message_timestamp: primary.timestamp,
         has_attachments: primary.has_attachments,
         unread_count,
+        is_split_candidate: true,
     }
 }
+
+/// Returns the set of thread IDs that have at least one sibling satisfying
+/// [`is_reaction_bucket`] (same canonical address-set + same `sub_id`,
+/// excluding `sub_id == -1` and empty canonical sets per the heuristic).
+///
+/// Used by the merge-off path: when the user has disabled merging, we
+/// still want to show a marker on conversations that *would* merge if the
+/// feature were on. Computed once per `rederive_conversations` call.
+pub(crate) fn split_candidate_thread_ids(raw: &[ConversationSummary]) -> HashSet<i64> {
+    let mut groups: HashMap<(Vec<String>, i64), Vec<i64>> = HashMap::new();
+    for cs in raw {
+        let canon = canonical_set(&cs.addresses);
+        if cs.sub_id == -1 || canon.is_empty() {
+            continue;
+        }
+        groups.entry((canon, cs.sub_id)).or_default().push(cs.thread_id);
+    }
+    groups
+        .into_iter()
+        .filter(|(_, threads)| threads.len() > 1)
+        .flat_map(|(_, threads)| threads)
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -341,6 +376,8 @@ mod tests {
         assert_eq!(logical[1].primary_thread_id, 100);
         assert_eq!(logical[0].merged_thread_ids, vec![200]);
         assert_eq!(logical[1].merged_thread_ids, vec![100]);
+        assert!(!logical[0].is_split_candidate);
+        assert!(!logical[1].is_split_candidate);
     }
 
     #[test]
@@ -362,6 +399,7 @@ mod tests {
         assert_eq!(lc.last_message_preview, "❤ to \"original\"");
         assert_eq!(lc.last_message_timestamp, 6000);
         assert_eq!(lc.unread_count, 1);
+        assert!(lc.is_split_candidate);
     }
 
     #[test]
@@ -441,5 +479,59 @@ mod tests {
         assert_eq!(logical[0].last_message_timestamp, 9000);
         assert_eq!(logical[1].last_message_timestamp, 5000);
         assert_eq!(logical[2].last_message_timestamp, 1500);
+    }
+
+    #[test]
+    fn split_candidate_thread_ids_finds_pair() {
+        let raw = vec![
+            cs(1108, 3, &["+15551234567"], 5000, "original", false, false),
+            cs(1217, 3, &["5551234567"], 6000, "❤ to \"original\"", true, false),
+            cs(999, 3, &["5559999999"], 7000, "lone", false, false),
+        ];
+        let candidates = split_candidate_thread_ids(&raw);
+        assert!(candidates.contains(&1108));
+        assert!(candidates.contains(&1217));
+        assert!(!candidates.contains(&999));
+    }
+
+    #[test]
+    fn split_candidate_thread_ids_skips_subid_minus_one() {
+        let raw = vec![
+            cs(100, -1, &["5551111111"], 1000, "a", false, false),
+            cs(200, -1, &["5551111111"], 2000, "b", false, false),
+        ];
+        let candidates = split_candidate_thread_ids(&raw);
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn split_candidate_thread_ids_skips_empty_canonical() {
+        let raw = vec![
+            cs(100, 3, &[], 1000, "a", false, false),
+            cs(200, 3, &[], 2000, "b", false, false),
+        ];
+        let candidates = split_candidate_thread_ids(&raw);
+        assert!(candidates.is_empty());
+    }
+
+    #[test]
+    fn split_candidate_thread_ids_matches_merge_groups() {
+        // Same shape as merge_into_logical_collapses_triple; expect all 3 of
+        // the triple plus both of the pair to be candidates, and the
+        // standalone to be excluded.
+        let raw = vec![
+            cs(1108, 3, &["+15551234567"], 5000, "a", false, false),
+            cs(1217, 3, &["5551234567"], 6000, "b", false, false),
+            cs(1048, 3, &["5551111111", "5552222222"], 4000, "c", false, false),
+            cs(655, 3, &["5551111111", "5552222222"], 5000, "d", false, false),
+            cs(1047, 3, &["5551111111", "5552222222"], 6000, "e", false, false),
+            cs(999, 3, &["5559999999"], 7000, "lone", false, false),
+        ];
+        let candidates = split_candidate_thread_ids(&raw);
+        let mut actual: Vec<i64> = candidates.into_iter().collect();
+        actual.sort();
+        let mut expected: Vec<i64> = vec![1108, 1217, 1048, 655, 1047];
+        expected.sort();
+        assert_eq!(actual, expected);
     }
 }

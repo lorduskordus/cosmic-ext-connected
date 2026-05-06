@@ -1615,15 +1615,21 @@ impl Application for ConnectApplet {
         let content: Element<Message> = match &self.view_mode {
             ViewMode::Settings => view_settings(&self.config),
             ViewMode::NotificationSettings => view_notification_settings(&self.config),
-            ViewMode::ConversationList => self
-                .sms
-                .view(SmsViewMode::ConversationList, self.status_message.as_deref()),
-            ViewMode::MessageThread => self
-                .sms
-                .view(SmsViewMode::MessageThread, self.status_message.as_deref()),
-            ViewMode::NewMessage => self
-                .sms
-                .view(SmsViewMode::NewMessage, self.status_message.as_deref()),
+            ViewMode::ConversationList => self.sms.view(
+                SmsViewMode::ConversationList,
+                &self.config,
+                self.status_message.as_deref(),
+            ),
+            ViewMode::MessageThread => self.sms.view(
+                SmsViewMode::MessageThread,
+                &self.config,
+                self.status_message.as_deref(),
+            ),
+            ViewMode::NewMessage => self.sms.view(
+                SmsViewMode::NewMessage,
+                &self.config,
+                self.status_message.as_deref(),
+            ),
             ViewMode::MediaControls => view_media_controls(MediaControlsParams {
                 device_name: self.media_device_name.as_deref(),
                 media_info: self.media_info.as_ref(),

@@ -197,3 +197,7 @@ unpaired = Unpaired from device
 attachment = Attachment
 loading-attachment = Loading attachment...
 attachment-failed = Failed to load attachment
+
+# Reaction-thread merging UI
+merge-toggle-on-tooltip = Reaction threads are merged. Click to show separately.
+merge-toggle-off-tooltip = Reaction threads are shown separately. Click to merge.

@@ -26,7 +26,7 @@ use kdeconnect_dbus::contacts::ContactLookup;
 use kdeconnect_dbus::plugins::{
     is_address_valid, ConversationSummary, MessageType, SmsMessage, OPTIMISTIC_MESSAGE_UID,
 };
-use crate::sms::logical::{merge_into_logical, LogicalConversation};
+use crate::sms::logical::{merge_into_logical, split_candidate_thread_ids, LogicalConversation};
 use kdeconnect_dbus::{normalize_phone_number, phone_suffix};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -198,16 +198,23 @@ impl SmsConversationStore {
 
     /// Re-derive `conversations` from the raw cache. Honors
     /// `config.merge_reaction_threads`: runs `merge_into_logical` when on;
-    /// falls back to 1:1 `from_single` wrapping when off. Call after any
-    /// mutation of `raw_conversations`, or after the toggle changes.
+    /// falls back to 1:1 `from_single` wrapping when off, and in the off
+    /// case marks each entry whose underlying thread has a reaction-bucket
+    /// sibling so the UI can surface "would-merge" indicators. Call after
+    /// any mutation of `raw_conversations`, or after the toggle changes.
     pub(crate) fn rederive_conversations(&mut self, config: &Config) {
         self.conversations = if config.merge_reaction_threads {
             merge_into_logical(&self.raw_conversations)
         } else {
+            let candidates = split_candidate_thread_ids(&self.raw_conversations);
             self.raw_conversations
                 .iter()
                 .cloned()
-                .map(LogicalConversation::from_single)
+                .map(|cs| {
+                    let mut lc = LogicalConversation::from_single(cs);
+                    lc.is_split_candidate = candidates.contains(&lc.primary_thread_id);
+                    lc
+                })
                 .collect()
         };
     }
@@ -1383,10 +1390,13 @@ impl SmsConversationStore {
     /// Render the active SMS sub-view.
     ///
     /// `status_message` is owned by the parent app and threaded through for
-    /// the message-thread view's send-confirmation/error banner.
+    /// the message-thread view's send-confirmation/error banner. `config`
+    /// supplies `merge_reaction_threads` to the conversation-list view so
+    /// the header toggle can show its current state.
     pub fn view<'a>(
         &'a self,
         mode: SmsViewMode,
+        config: &'a Config,
         status_message: Option<&'a str>,
     ) -> Element<'a, Message> {
         match mode {
@@ -1397,6 +1407,7 @@ impl SmsConversationStore {
                 contacts: &self.contacts,
                 loading_state: &self.sms_loading_state,
                 sync_active: self.conversation_sync_active,
+                merge_reaction_threads: config.merge_reaction_threads,
             }),
             SmsViewMode::MessageThread => {
                 let thread = view_message_thread(MessageThreadParams {

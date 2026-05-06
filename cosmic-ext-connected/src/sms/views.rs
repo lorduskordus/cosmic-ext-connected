@@ -1,6 +1,6 @@
 //! SMS view components for conversation list and message threads.
 
-use crate::app::{LoadingPhase, Message, SmsLoadingState};
+use crate::app::{LoadingPhase, Message, SettingKey, SmsLoadingState};
 use crate::fl;
 use crate::views::helpers::format_timestamp;
 use base64::Engine;
@@ -151,6 +151,11 @@ pub struct ConversationListParams<'a> {
     pub loading_state: &'a SmsLoadingState,
     /// Whether background sync is active (syncing conversations from phone)
     pub sync_active: bool,
+    /// Current value of `config.merge_reaction_threads`. Drives the header
+    /// toggle's icon + tooltip; also controls whether per-entry merge
+    /// markers can appear (no markers when merging is off because no
+    /// `LogicalConversation` will have `merged_thread_ids.len() > 1`).
+    pub merge_reaction_threads: bool,
 }
 
 /// Render the SMS conversation list view.
@@ -190,9 +195,31 @@ pub fn view_conversation_list(params: ConversationListParams<'_>) -> Element<'_,
     .gap(sp.space_xxxs)
     .padding(sp.space_xxs);
 
+    let (merge_toggle_icon, merge_toggle_tooltip) = if params.merge_reaction_threads {
+        (
+            "io.github.nwxnw.cosmic-ext-connected-merged-symbolic",
+            fl!("merge-toggle-on-tooltip"),
+        )
+    } else {
+        (
+            "io.github.nwxnw.cosmic-ext-connected-split-symbolic",
+            fl!("merge-toggle-off-tooltip"),
+        )
+    };
+    let merge_toggle_btn = widget::tooltip(
+        widget::button::icon(widget::icon::from_name(merge_toggle_icon))
+            .class(cosmic::theme::Button::Link)
+            .on_press(Message::ToggleSetting(SettingKey::MergeReactionThreads)),
+        text::caption(merge_toggle_tooltip),
+        widget::tooltip::Position::Bottom,
+    )
+    .gap(sp.space_xxxs)
+    .padding(sp.space_xxs);
+
     let header = applet::padded_control(
         header_row
             .push(widget::space::horizontal())
+            .push(merge_toggle_btn)
             .push(new_msg_btn),
     );
 
@@ -257,13 +284,33 @@ pub fn view_conversation_list(params: ConversationListParams<'_>) -> Element<'_,
                         .into()
                 };
 
+            let marker_glyph: Option<&str> = if conv.merged_thread_ids.len() > 1 {
+                Some("io.github.nwxnw.cosmic-ext-connected-merged-symbolic")
+            } else if conv.is_split_candidate {
+                Some("io.github.nwxnw.cosmic-ext-connected-split-symbolic")
+            } else {
+                None
+            };
+
+            let snippet_row: Element<Message> = if let Some(glyph) = marker_glyph {
+                row![
+                    widget::icon::from_name(glyph).size(12),
+                    snippet_element,
+                ]
+                .spacing(sp.space_xxxs)
+                .align_y(Alignment::Center)
+                .into()
+            } else {
+                snippet_element
+            };
+
             let conv_row = applet::menu_button(
                 row![
                     widget::container(
                         column![
                             text::body(display_name)
                                 .wrapping(cosmic::iced::widget::text::Wrapping::None),
-                            snippet_element,
+                            snippet_row,
                         ]
                         .spacing(2),
                     )
