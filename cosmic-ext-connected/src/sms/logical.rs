@@ -147,6 +147,22 @@ pub(crate) fn merge_into_logical(raw: &[ConversationSummary]) -> Vec<LogicalConv
 /// Build one `LogicalConversation` from a group of 2+ `ConversationSummary`
 /// values known to share the same canonical address-set and `sub_id`.
 fn merge_group(mut threads: Vec<&ConversationSummary>) -> LogicalConversation {
+    debug_assert!(
+        threads.len() >= 2,
+        "merge_group called with <2 threads; merge_into_logical guards this"
+    );
+    debug_assert!(
+        threads.iter().all(|cs| cs.sub_id == threads[0].sub_id),
+        "merge_group: all threads must share sub_id"
+    );
+    debug_assert!(
+        {
+            let canon = canonical_set(&threads[0].addresses);
+            threads.iter().all(|cs| canonical_set(&cs.addresses) == canon)
+        },
+        "merge_group: all threads must share canonical address-set"
+    );
+
     // Most-recently-active sibling becomes the primary, per the symmetric-
     // split tiebreak rule (Phase 1B: matches AOSP's outgoing-reply
     // canonicalization, so the echo lands on the threadId we passed).
@@ -155,6 +171,11 @@ fn merge_group(mut threads: Vec<&ConversationSummary>) -> LogicalConversation {
 
     let merged_thread_ids: Vec<i64> = threads.iter().map(|cs| cs.thread_id).collect();
     let subscription_id = primary.sub_id;
+
+    debug_assert!(
+        merged_thread_ids.contains(&primary.thread_id),
+        "merge_group: primary_thread_id must be in merged_thread_ids"
+    );
 
     // Address union deduplicated by canonical form, preserving the first-
     // seen original (carrier-formatted) string for display.
@@ -171,6 +192,14 @@ fn merge_group(mut threads: Vec<&ConversationSummary>) -> LogicalConversation {
 
     let unread_count = threads.iter().filter(|cs| cs.unread).count();
 
+    tracing::info!(
+          "merge_decision: primary={} merged={:?} sub_id={} canonical_addrs={:?}",
+          primary.thread_id,
+          merged_thread_ids,
+          subscription_id,
+          canonical_set(&primary.addresses)
+      );
+
     LogicalConversation {
         primary_thread_id: primary.thread_id,
         merged_thread_ids,
@@ -182,7 +211,6 @@ fn merge_group(mut threads: Vec<&ConversationSummary>) -> LogicalConversation {
         unread_count,
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;

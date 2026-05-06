@@ -988,12 +988,21 @@ impl SmsConversationStore {
                         // the primary thread. See `reply_target` for the
                         // full rationale and Phase 1B citation.
                         let reply_target = self.reply_target(thread_id);
-                        tracing::info!(
-                            "Dispatching send_sms_async via replyToConversation \
-                             displayed_thread_id={} reply_target={}",
-                            thread_id,
-                            reply_target
+                        debug_assert!(
+                            self.logical_for(thread_id)
+                                .map(|lc| lc.merged_thread_ids.contains(&reply_target))
+                                .unwrap_or(reply_target == thread_id),
+                            "reply_target {} not in merged_thread_ids of logical for \
+                               displayed_thread_id {}",
+                            reply_target,
+                            thread_id
                         );
+                        tracing::info!(
+                              "Dispatching send_sms_async via replyToConversation \
+                               displayed_thread_id={} reply_target={}",
+                              thread_id,
+                              reply_target
+                          );
                         return (
                             cosmic::app::Task::perform(
                                 send_sms_async(
