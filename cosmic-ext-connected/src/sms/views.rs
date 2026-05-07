@@ -194,6 +194,7 @@ pub fn view_conversation_list(params: ConversationListParams<'_>) -> Element<'_,
 
     let new_msg_btn = widget::tooltip(
         widget::button::icon(widget::icon::from_name("list-add-symbolic"))
+            .class(cosmic::theme::Button::Link)
             .on_press(Message::OpenNewMessage),
         text::caption(fl!("new-message")),
         widget::tooltip::Position::Bottom,
@@ -725,6 +726,7 @@ pub fn view_new_message(params: NewMessageParams<'_>) -> Element<'_, Message> {
             .into()
     } else if input_valid {
         widget::button::icon(widget::icon::from_name("list-add-symbolic").size(20))
+            .class(cosmic::theme::Button::Link)
             .on_press(Message::AddManualRecipient)
             .into()
     } else {

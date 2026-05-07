@@ -232,7 +232,14 @@ pub fn view<'a>(device: &'a DeviceInfo, status_message: Option<&'a str>) -> Elem
     } else {
         let device_id_for_pair = device.id.clone();
         let pair_row = row![
-            icon::from_name("list-add-symbolic").size(24),
+            icon::from_name("list-add-symbolic")
+                .size(24)
+                .icon()
+                .class(cosmic::theme::Svg::custom(|theme| {
+                    cosmic::iced::widget::svg::Style {
+                        color: Some(theme.cosmic().accent_text_color().into()),
+                    }
+                })),
             text::body(fl!("pair")),
             widget::space::horizontal(),
         ]
