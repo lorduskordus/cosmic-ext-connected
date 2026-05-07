@@ -467,12 +467,16 @@ fn build_notification_row<'a>(
         format!("{}: {}", notif.app_name, notif.title)
     };
 
-    let notif_content = column![text::body(notif_title), text::caption(&notif.text),].spacing(2);
+    let notif_content = column![
+        text::body(notif_title).wrapping(cosmic::iced::widget::text::Wrapping::WordOrGlyph),
+        text::caption(&notif.text).wrapping(cosmic::iced::widget::text::Wrapping::WordOrGlyph),
+    ]
+    .spacing(2)
+    .width(Length::Fill);
 
     let mut notif_row = row![
         icon::from_name("notification-symbolic").size(20),
         notif_content,
-        widget::space::horizontal(),
     ]
     .spacing(sp.space_xxs)
     .align_y(Alignment::Center);
