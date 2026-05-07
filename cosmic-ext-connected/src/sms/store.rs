@@ -12,6 +12,7 @@ use crate::app::{DeviceInfo, LoadingPhase, Message, SmsLoadingState};
 use crate::config::Config;
 use crate::fl;
 use crate::notifications::show_and_auto_close;
+use crate::sms::logical::{merge_into_logical, split_candidate_thread_ids, LogicalConversation};
 use crate::sms::{
     conversation_list_subscription, fetch_older_messages_async, request_attachment_async,
     send_new_sms_async, send_sms_async, view_conversation_list, view_message_thread,
@@ -26,7 +27,6 @@ use kdeconnect_dbus::contacts::ContactLookup;
 use kdeconnect_dbus::plugins::{
     is_address_valid, ConversationSummary, MessageType, SmsMessage, OPTIMISTIC_MESSAGE_UID,
 };
-use crate::sms::logical::{merge_into_logical, split_candidate_thread_ids, LogicalConversation};
 use kdeconnect_dbus::{normalize_phone_number, phone_suffix};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -335,11 +335,7 @@ impl SmsConversationStore {
             .collect()
     }
 
-    pub fn update(
-        &mut self,
-        msg: Message,
-        ctx: &SmsCtx,
-    ) -> (cosmic::app::Task<Message>, SmsReply) {
+    pub fn update(&mut self, msg: Message, ctx: &SmsCtx) -> (cosmic::app::Task<Message>, SmsReply) {
         match msg {
             // === Batch 1: Conversation list ===
             Message::ConversationsLoaded(convs) => {
@@ -877,10 +873,8 @@ impl SmsConversationStore {
 
                 // Update pagination state via helper (handles merged-set math).
                 self.messages_loaded_count = self.messages.len() as u32;
-                self.messages_has_more = self.compute_messages_has_more(
-                    total_count,
-                    ctx.config.messages_per_page as usize,
-                );
+                self.messages_has_more = self
+                    .compute_messages_has_more(total_count, ctx.config.messages_per_page as usize);
 
                 // Scroll to bottom to show latest messages
                 if !self.messages.is_empty() {
@@ -929,10 +923,8 @@ impl SmsConversationStore {
                 // converge on the same final values regardless of arrival order.
                 self.messages.sort_by_key(|m| m.date);
                 self.messages_loaded_count = self.messages.len() as u32;
-                self.messages_has_more = self.compute_messages_has_more(
-                    total_count,
-                    ctx.config.messages_per_page as usize,
-                );
+                self.messages_has_more = self
+                    .compute_messages_has_more(total_count, ctx.config.messages_per_page as usize);
                 if let Some(newest) = self.messages.iter().map(|m| m.date).max() {
                     let current = self.last_seen_sms.get(&thread_id).copied();
                     if current.is_none() || current < Some(newest) {
@@ -1005,11 +997,11 @@ impl SmsConversationStore {
                             thread_id
                         );
                         tracing::info!(
-                              "Dispatching send_sms_async via replyToConversation \
+                            "Dispatching send_sms_async via replyToConversation \
                                displayed_thread_id={} reply_target={}",
-                              thread_id,
-                              reply_target
-                          );
+                            thread_id,
+                            reply_target
+                        );
                         return (
                             cosmic::app::Task::perform(
                                 send_sms_async(
@@ -1170,19 +1162,17 @@ impl SmsConversationStore {
                 }
                 (cosmic::app::Task::none(), SmsReply::NoOp)
             }
-            Message::AttachmentReady(file_path) => {
-                (
-                    cosmic::app::Task::perform(
-                        async move {
-                            let _ = tokio::process::Command::new("xdg-open")
-                                .arg(&file_path)
-                                .spawn();
-                        },
-                        |_| cosmic::Action::App(Message::ClearStatusMessage),
-                    ),
-                    SmsReply::SetStatus(None),
-                )
-            }
+            Message::AttachmentReady(file_path) => (
+                cosmic::app::Task::perform(
+                    async move {
+                        let _ = tokio::process::Command::new("xdg-open")
+                            .arg(&file_path)
+                            .spawn();
+                    },
+                    |_| cosmic::Action::App(Message::ClearStatusMessage),
+                ),
+                SmsReply::SetStatus(None),
+            ),
             Message::AttachmentError(err) => {
                 tracing::error!("Attachment error: {}", err);
                 (
@@ -1245,7 +1235,8 @@ impl SmsConversationStore {
                                 let sender_name = match cached_sender_name {
                                     Some(name) => name,
                                     None => {
-                                        let contacts = ContactLookup::load_for_device(&device_id).await;
+                                        let contacts =
+                                            ContactLookup::load_for_device(&device_id).await;
                                         contacts.get_group_display_name(&addresses, 3)
                                     }
                                 };

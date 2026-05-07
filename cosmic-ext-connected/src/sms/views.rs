@@ -2,6 +2,7 @@
 
 use crate::app::{LoadingPhase, Message, SettingKey, SmsLoadingState};
 use crate::fl;
+use crate::sms::logical::LogicalConversation;
 use crate::views::helpers::format_timestamp;
 use base64::Engine;
 use cosmic::applet;
@@ -12,10 +13,8 @@ use cosmic::widget::{self, text};
 use cosmic::Element;
 use kdeconnect_dbus::contacts::ContactLookup;
 use kdeconnect_dbus::plugins::{
-    is_address_valid, Attachment, MessageType, SmsMessage,
-    OPTIMISTIC_MESSAGE_UID,
+    is_address_valid, Attachment, MessageType, SmsMessage, OPTIMISTIC_MESSAGE_UID,
 };
-use crate::sms::logical::LogicalConversation;
 
 // --- Helper functions for loading state ---
 
@@ -59,7 +58,12 @@ fn is_loading_more(state: &SmsLoadingState) -> bool {
 // --- Helper functions for conversation list ---
 
 fn normalize_snippet(body: &str) -> String {
-    body.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(50).collect::<String>()
+    body.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(50)
+        .collect::<String>()
 }
 
 // --- Attachment helpers ---
@@ -300,19 +304,15 @@ pub fn view_conversation_list(params: ConversationListParams<'_>) -> Element<'_,
             };
 
             let snippet_row: Element<Message> = if let Some(glyph) = marker_glyph {
-                let marker_icon = widget::icon::from_name(glyph).size(14).icon()
-                    .class(cosmic::theme::Svg::custom(|theme| {
-                        cosmic::iced::widget::svg::Style {
-                            color: Some(theme.cosmic().accent_text_color().into()),
-                        }
-                    }));
-                row![
-                    marker_icon,
-                    snippet_element,
-                ]
-                .spacing(sp.space_xxxs)
-                .align_y(Alignment::Center)
-                .into()
+                let marker_icon = widget::icon::from_name(glyph).size(14).icon().class(
+                    cosmic::theme::Svg::custom(|theme| cosmic::iced::widget::svg::Style {
+                        color: Some(theme.cosmic().accent_text_color().into()),
+                    }),
+                );
+                row![marker_icon, snippet_element,]
+                    .spacing(sp.space_xxxs)
+                    .align_y(Alignment::Center)
+                    .into()
             } else {
                 snippet_element
             };

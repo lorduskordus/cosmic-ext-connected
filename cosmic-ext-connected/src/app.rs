@@ -985,8 +985,7 @@ impl Application for ConnectApplet {
                         self.config.file_notifications = !self.config.file_notifications;
                     }
                     SettingKey::MergeReactionThreads => {
-                        self.config.merge_reaction_threads =
-                            !self.config.merge_reaction_threads;
+                        self.config.merge_reaction_threads = !self.config.merge_reaction_threads;
                         self.sms.rederive_conversations(&self.config);
                     }
                 }
@@ -1070,7 +1069,9 @@ impl Application for ConnectApplet {
                             for conv in &prefetched {
                                 let current = self.sms.last_seen_sms.get(&conv.thread_id).copied();
                                 if current.is_none() || current < Some(conv.timestamp) {
-                                    self.sms.last_seen_sms.insert(conv.thread_id, conv.timestamp);
+                                    self.sms
+                                        .last_seen_sms
+                                        .insert(conv.thread_id, conv.timestamp);
                                 }
                             }
                             self.sms.conversations = prefetched
@@ -1126,7 +1127,11 @@ impl Application for ConnectApplet {
                 // Guard: need D-Bus connection and device ID for the subscription
                 if self.dbus_connection.is_some() && self.sms.sms_device_id.is_some() {
                     // Find the conversation for header info and deduplication
-                    let conversation = self.sms.conversations.iter().find(|lc| lc.primary_thread_id == thread_id);
+                    let conversation = self
+                        .sms
+                        .conversations
+                        .iter()
+                        .find(|lc| lc.primary_thread_id == thread_id);
 
                     let addresses = conversation.map(|c| c.addresses.clone());
                     let merged_thread_ids = conversation
@@ -1196,7 +1201,8 @@ impl Application for ConnectApplet {
                 self.sms.conversation_list_key = self.sms.conversation_list_key.wrapping_add(1);
 
                 // Refresh conversations in background
-                if let (Some(conn), Some(device_id)) = (&self.dbus_connection, &self.sms.sms_device_id)
+                if let (Some(conn), Some(device_id)) =
+                    (&self.dbus_connection, &self.sms.sms_device_id)
                 {
                     if self.sms.conversations.is_empty() {
                         self.sms.sms_loading_state =
@@ -1210,13 +1216,7 @@ impl Application for ConnectApplet {
                 self.sms.sms_loading_state = SmsLoadingState::Idle;
             }
 
-
             // Subscription-based conversation list loading handlers
-
-
-
-
-
 
             // Subscription-based message loading handlers
 
@@ -1470,7 +1470,8 @@ impl Application for ConnectApplet {
                             .appname("Connected")
                             .urgency(urgency)
                             .timeout(notify_rust::Timeout::Never);
-                        crate::notifications::show_and_auto_close(notification, timeout_ms, "call").await;
+                        crate::notifications::show_and_auto_close(notification, timeout_ms, "call")
+                            .await;
                     },
                     |_| cosmic::Action::App(Message::RefreshDevices),
                 );
@@ -1511,7 +1512,12 @@ impl Application for ConnectApplet {
                                 .icon("folder-download-symbolic")
                                 .appname("Connected")
                                 .timeout(notify_rust::Timeout::Never);
-                            crate::notifications::show_and_auto_close(notification, timeout_ms, "file").await;
+                            crate::notifications::show_and_auto_close(
+                                notification,
+                                timeout_ms,
+                                "file",
+                            )
+                            .await;
                         },
                         |_| cosmic::Action::App(Message::RefreshDevices),
                     );
@@ -1750,4 +1756,3 @@ impl Application for ConnectApplet {
         Some(cosmic::applet::style())
     }
 }
-
