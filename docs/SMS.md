@@ -72,7 +72,7 @@ Merging precondition (`is_reaction_bucket`):
 
 Each `LogicalConversation` carries:
 
-- `primary_thread_id` — the most-recently-active sibling within the merged set; used as the reply target (M9) and notification dedup key (M12).
+- `primary_thread_id` — the most-recently-active sibling within the merged set; used as the reply target.
 - `merged_thread_ids` — all underlying threadIds composing this logical conversation. Always contains `primary_thread_id`. Single-element for non-merged.
 
 Opening a merged conversation fans out the message subscription: one `conversation_message_subscription` per underlying threadId, each firing its own `requestConversation` and emitting `ConversationMessageReceived` for its own thread. Signal handlers accept any thread in the open `current_merged_thread_ids` set rather than only the primary.
@@ -81,6 +81,29 @@ Multi-subscription completion semantics:
 
 - `ConversationLoadComplete` is idempotent. Math (sort, `messages_has_more`, `last_seen_sms`) always runs; loading-state clear and scroll-to-bottom snap fire only on the first arrival. Late completions silently refresh stats so a slow-completing subscription can't yank the user back to bottom.
 - `messages_has_more` math forces a heuristic-only branch when `current_merged_thread_ids.len() > 1`, since per-thread `total_count` is incomparable to the union `messages.len()`.
+
+### Reply target rule
+
+When the user sends a reply into a conversation, Connected picks the threadId to pass to `replyToConversation` based on the merge state of the open conversation:
+
+- **Symmetric merge** (canonical address-sets equal across the merged group — the case M7's primary-equality heuristic produces): redirect to `primary_thread_id`. This matches AOSP's outgoing-reply canonicalization, so the echo lands on the threadId Connected passed and the optimistic-send reconciliation can complete cleanly. As a side effect, the redirect bypasses AOSP's per-bucket processing that would otherwise produce **recipient-side duplicate delivery** — the recipient receives one copy instead of two.
+- **Asymmetric / subset clause** (untested across captured pairs; reintroduced if/when the subset clause returns to the merge heuristic): preserve the displayed thread's threadId. Conservative until field data confirms the redirect is address-safe under subset shapes. The branch is dormant under M7's primary-equality heuristic — every merged set is symmetric by construction — so production paths today take the symmetric arm exclusively.
+- **Non-merged or unknown thread**: pass the displayed threadId through unchanged.
+
+The duplicate-delivery side effect is empirically locked. Pre-merge behavior on a known reaction-bucket pair (Pair 4 captured 2026-05-02) reproduced two-copy delivery to the recipient. Under the redirect, the same pair delivers one copy. The redirect is therefore a corrective fix for a recipient-visible bug, not just a display-merge convenience.
+
+The reply-target rule applies only when merging is on. With merging off (see "Per-entry markers and SMS-view toggle" below), Connected sends to whichever underlying thread the user opened. Replying into the non-canonical sibling thread of a reaction-bucket pair will reproduce the AOSP-canonicalization symptoms — the echo arrives on the canonical primary instead of the displayed thread, the optimistic-send "Sending…" indicator can stay pinned, and the recipient may receive duplicate copies. This is documented behavior gated behind the user opt-out, not a regression.
+
+### Per-entry markers and SMS-view toggle
+
+The SMS conversation list shows a small marker on rows that participate in a reaction-bucket group. Two glyphs:
+
+- **Merge marker** (visible when the merge toggle is on): rows whose `LogicalConversation.merged_thread_ids.len() > 1` show a converging-Y glyph next to the message preview. Indicates "this conversation merges multiple phone-side threads."
+- **Split marker** (visible when the merge toggle is off): rows whose underlying thread has at least one reaction-bucket sibling in the conversation list show a parallel-arrows glyph next to the message preview. Indicates "this conversation has a sibling thread on the phone; turning the merge toggle on would combine them."
+
+A header toggle in the SMS view (between the conversation-list title and the new-message button) switches between merged and split states. The toggle uses the same iconography as the per-entry markers — converging-Y when merging is on, parallel-arrows when off — and dispatches the same `Message::ToggleSetting(SettingKey::MergeReactionThreads)` as the M13 settings option, so the two surfaces share state automatically. Toggling either one updates the other, and the toggle state persists across applet restarts.
+
+The merge-off path uses the same `is_reaction_bucket` predicate as the merge-on path, so any pair the merge logic *would* combine also appears as split-marker entries when the user has merging off. When the v0.6.0+ subset clause returns to the heuristic, both surfaces pick it up automatically without further coordination.
 
 ### Older Message Loading
 
@@ -103,6 +126,8 @@ On success:
 - the conversation preview updates immediately with the latest body and timestamp
 - an optimistic sent bubble is inserted into the open thread
 - the long-lived message subscription reconciles that optimistic entry when the phone echoes back the real sent message
+
+For merged conversations, optimistic-send reconciliation matches by `OPTIMISTIC_MESSAGE_UID` + body + 5-minute window with no thread-id filter, so an echo arriving on a sibling thread within `merged_thread_ids` still upgrades the optimistic bubble in place. Combined with the symmetric-merge reply-target redirect (see "Reply target rule" above), this is what closes the present-tense "stuck spinner" UX behavior that pre-merge code paths produced when AOSP canonicalized the outgoing message into a non-displayed sibling thread.
 
 ### New Messages
 
