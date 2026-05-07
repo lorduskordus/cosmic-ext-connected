@@ -56,6 +56,12 @@ fn is_loading_more(state: &SmsLoadingState) -> bool {
     matches!(state, SmsLoadingState::LoadingMoreMessages)
 }
 
+// --- Helper functions for conversation list ---
+
+fn normalize_snippet(body: &str) -> String {
+    body.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(50).collect::<String>()
+}
+
 // --- Attachment helpers ---
 
 /// Determine the icon name for a MIME type.
@@ -269,7 +275,7 @@ pub fn view_conversation_list(params: ConversationListParams<'_>) -> Element<'_,
                     .into()
                 } else if conv.has_attachments {
                     // MMS with both text and attachments
-                    let snippet = conv.last_message_preview.chars().take(50).collect::<String>();
+                    let snippet = normalize_snippet(&conv.last_message_preview);
                     row![
                         widget::icon::from_name("mail-attachment-symbolic").size(14),
                         text::caption(snippet).wrapping(cosmic::iced::widget::text::Wrapping::None),
@@ -278,7 +284,7 @@ pub fn view_conversation_list(params: ConversationListParams<'_>) -> Element<'_,
                     .align_y(Alignment::Center)
                     .into()
                 } else {
-                    let snippet = conv.last_message_preview.chars().take(50).collect::<String>();
+                    let snippet = normalize_snippet(&conv.last_message_preview);
                     text::caption(snippet)
                         .wrapping(cosmic::iced::widget::text::Wrapping::None)
                         .into()
