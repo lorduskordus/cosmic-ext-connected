@@ -456,17 +456,9 @@ impl ConnectApplet {
     /// Caller batches the returned task with the store's task.
     fn handle_sms_reply(&mut self, reply: crate::sms::SmsReply) -> cosmic::app::Task<Message> {
         match reply {
-            crate::sms::SmsReply::ExitSms => {
-                self.view_mode = ViewMode::DevicePage;
-                cosmic::app::Task::none()
-            }
             crate::sms::SmsReply::Status(msg) => self.set_transient_status(msg),
             crate::sms::SmsReply::SetStatus(opt) => {
                 self.status_message = opt;
-                cosmic::app::Task::none()
-            }
-            crate::sms::SmsReply::Error(e) => {
-                self.error = Some(e);
                 cosmic::app::Task::none()
             }
             crate::sms::SmsReply::NewMessageSent(msg) => {
@@ -1566,7 +1558,6 @@ impl Application for ConnectApplet {
                 let ctx = crate::sms::SmsCtx {
                     conn: self.dbus_connection.as_ref(),
                     config: &self.config,
-                    devices: &self.devices,
                 };
                 let (sms_task, reply) = self.sms.update(message, &ctx);
                 let reply_task = self.handle_sms_reply(reply);

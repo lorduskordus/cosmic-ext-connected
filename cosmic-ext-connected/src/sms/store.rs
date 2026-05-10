@@ -1,14 +1,8 @@
 //! `SmsConversationStore` — owns SMS conversation state, message caches,
 //! subscription orchestration, optimistic-send state, contacts, and SMS
 //! notification dedup.
-//!
-//! M2: 35 SMS-touching fields migrated from `ConnectApplet`. Method bodies
-//! remain stubbed; `app.rs` accesses fields directly via `self.sms.<field>`.
-//! Field encapsulation tightens as method bodies fill in (M3–M5).
 
-#![allow(dead_code)] // stub methods; remove once call sites land
-
-use crate::app::{DeviceInfo, LoadingPhase, Message, SmsLoadingState};
+use crate::app::{LoadingPhase, Message, SmsLoadingState};
 use crate::config::Config;
 use crate::fl;
 use crate::notifications::show_and_auto_close;
@@ -40,22 +34,17 @@ use zbus::Connection;
 pub struct SmsCtx<'a> {
     pub conn: Option<&'a Arc<Mutex<Connection>>>,
     pub config: &'a Config,
-    pub devices: &'a [DeviceInfo],
 }
 
 /// Reply from the store back to the parent app describing app-level
 /// state changes the caller must apply.
 #[derive(Debug)]
 pub enum SmsReply {
-    /// SMS view is closing — caller should reset `view_mode` to `DevicePage`.
-    ExitSms,
     /// Emit a transient status message (3s auto-clear).
     Status(String),
     /// Set or clear `status_message` directly without auto-clear.
     /// Used for sticky "Loading…" indicators that pair with explicit clear.
     SetStatus(Option<String>),
-    /// Surface an error via the app's `error` field.
-    Error(String),
     /// New-message send succeeded: set status_message + return to ConversationList.
     NewMessageSent(String),
     /// No app-level state change required.
@@ -1491,28 +1480,6 @@ impl SmsConversationStore {
         }
 
         subs
-    }
-
-    pub fn open(
-        &mut self,
-        _device_id: String,
-        _device_name: Option<String>,
-        _ctx: &SmsCtx,
-    ) -> cosmic::app::Task<Message> {
-        unimplemented!()
-    }
-
-    pub fn close(&mut self) {
-        unimplemented!()
-    }
-
-    pub fn handle_notification(
-        &mut self,
-        _device_id: String,
-        _message: SmsMessage,
-        _ctx: &SmsCtx,
-    ) -> cosmic::app::Task<Message> {
-        unimplemented!()
     }
 }
 
