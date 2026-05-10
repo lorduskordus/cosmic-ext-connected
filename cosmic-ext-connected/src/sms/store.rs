@@ -66,7 +66,7 @@ pub struct SmsConversationStore {
 
     // Conversation list
     /// Raw per-thread conversations from the daemon. Source of truth for the
-    /// derived `conversations` list — the toggle (M13) and any reaction-bucket
+    /// derived `conversations` list — the merge toggle and any reaction-bucket
     /// re-derivation works off this cache without re-fetching.
     pub(crate) raw_conversations: Vec<ConversationSummary>,
     pub(crate) conversations: Vec<LogicalConversation>,
@@ -211,8 +211,7 @@ impl SmsConversationStore {
     }
 
     /// Find the `LogicalConversation` containing `thread_id` (whether as
-    /// primary or as a merged sibling). Returns `None` for unknown thread
-    /// IDs. Centralizes the membership lookup pattern from M8.
+    /// primary or as a merged sibling). Returns `None` for unknown thread IDs.
     fn logical_for(&self, thread_id: i64) -> Option<&LogicalConversation> {
         self.conversations
             .iter()
@@ -223,7 +222,7 @@ impl SmsConversationStore {
     /// thread, per the Phase 1B-validated split-by-case rule.
     ///
     /// - **Symmetric merge** (canonical address-sets equal across the merged
-    ///   group — the only case M7's primary-equality heuristic produces) →
+    ///   group — the only case the primary-equality heuristic produces) →
     ///   redirect to `primary_thread_id` (most-recently-active sibling
     ///   within `subID`). Matches AOSP's outgoing-reply canonicalization
     ///   so the echo lands where we expect, and bypasses AOSP's per-bucket
@@ -737,8 +736,8 @@ impl SmsConversationStore {
             Message::ConversationMessageReceived { thread_id, message } => {
                 // Guard: accept messages from any thread in the open merged set.
                 // Reactions split into bucket threads arrive on a different
-                // threadId than the primary; rejecting them here is the source
-                // of the orphaned-reactions UX bug from M7's smoke test.
+                // threadId than the primary; rejecting them here would
+                // re-introduce the orphaned-reactions UX bug.
                 if !self.current_merged_thread_ids.contains(&thread_id) {
                     tracing::debug!(
                         "Ignoring message for thread {} (open merged set: {:?})",
@@ -979,9 +978,9 @@ impl SmsConversationStore {
                         self.sms_sending = true;
                         self.sms_sending_body = Some(message_text.clone());
                         // Apply the split-by-case rule: for symmetric merges
-                        // (every merged set under M7's heuristic) redirect to
-                        // the primary thread. See `reply_target` for the
-                        // full rationale and Phase 1B citation.
+                        // (every merged set under the primary-equality
+                        // heuristic) redirect to the primary thread. See
+                        // `reply_target` for the rationale and Phase 1B citation.
                         let reply_target = self.reply_target(thread_id);
                         debug_assert!(
                             self.logical_for(thread_id)
@@ -1056,12 +1055,10 @@ impl SmsConversationStore {
                             // SmsSendResult — skip to avoid duplicate.
                             if self.sms_sending_body.is_some() {
                                 // Source sub_id from the LogicalConversation
-                                // populated at fetch time, not the lazy
-                                // first-message field that M9 retired. The
-                                // value is the same SIM property; sourcing
-                                // it here closes the pre-first-message
-                                // window where the optimistic stamp would
-                                // have fallen back to -1.
+                                // populated at fetch time. The value is the
+                                // same SIM property; sourcing it here closes
+                                // the pre-first-message window where the
+                                // optimistic stamp would have fallen back to -1.
                                 let sub_id = self
                                     .logical_for(thread_id)
                                     .map(|lc| lc.subscription_id)
@@ -1368,9 +1365,8 @@ impl SmsConversationStore {
                 }
             }
 
-            // Catch-all: non-SMS variants and SMS variants not yet migrated
-            // Phase C will narrow `app.rs` delegation to the migrated subset,
-            // so this arm only fires for genuine routing mistakes after M3.
+            // Every SMS variant is handled above; this arm only fires if a
+            // non-SMS Message is mis-routed here from `app.rs::update`.
             _ => unreachable!("non-SMS Message routed to SmsConversationStore"),
         }
     }

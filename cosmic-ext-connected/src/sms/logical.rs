@@ -1,7 +1,7 @@
 //! Logical conversation: wraps one-or-more underlying SMS thread IDs that
 //! represent the same user-perceived conversation.
 //!
-//! M7 lights up reaction-bucket merging via [`merge_into_logical`], which
+//! Reaction-bucket merging is implemented in [`merge_into_logical`], which
 //! collapses split threads (same canonical address-set + same subID) into
 //! a single `LogicalConversation` carrying multiple `merged_thread_ids`.
 //! See `Reaction Thread Splitting - Investigation and Fix Approach.md`
@@ -39,7 +39,7 @@ pub struct LogicalConversation {
     pub has_attachments: bool,
     /// Sum of underlying threads currently flagged unread.
     #[allow(dead_code)]
-    // M11 deferred to v0.6.0+; field lights up with the unread display work.
+    // Deferred to v0.6.0+ when the unread display work lands.
     pub unread_count: usize,
     /// True when this conversation's underlying thread(s) participate in a
     /// phone-side reaction-bucket group (per [`is_reaction_bucket`]).
@@ -102,11 +102,11 @@ pub(crate) fn canonical_set(addresses: &[String]) -> Vec<String> {
 /// - both `sub_id`s are non-`-1` and equal, AND
 /// - canonical address-sets are equal.
 ///
-/// The subset clause is intentionally omitted at M7: every Phase 1 capture
-/// pair was symmetric, and the conversation-summary-level body field is too
+/// The subset clause is intentionally omitted: every Phase 1 capture pair
+/// was symmetric, and the conversation-summary-level body field is too
 /// sparse to drive the reaction-pattern check that the subset clause needs.
 /// Revisit once richer per-message context is available.
-#[allow(dead_code)] // Called at M9 (split-by-case reply rule); covered by tests today.
+#[allow(dead_code)] // Exercised by tests; the merge path uses canonical_set + sub_id directly.
 pub(crate) fn is_reaction_bucket(a: &ConversationSummary, b: &ConversationSummary) -> bool {
     if a.sub_id == -1 || b.sub_id == -1 {
         return false;
@@ -362,8 +362,8 @@ mod tests {
 
     #[test]
     fn is_reaction_bucket_rejects_strict_subset() {
-        // Subset clause is omitted at M7; one strictly contained in the
-        // other should NOT merge under primary-equality-only.
+        // Subset clause is omitted; one strictly contained in the other
+        // should NOT merge under primary-equality-only.
         let a = cs(
             100,
             3,

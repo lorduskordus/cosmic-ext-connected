@@ -14,7 +14,6 @@ Implemented:
 
 Possible next steps:
 
-- Move SMS state out of `app.rs` and per-view subscriptions into a shared SMS session/store.
 - Reduce the differences between conversation-list and thread-loading synchronization models.
 - Keep reviewing thread correctness around deduplication, pagination heuristics, notification interaction, scroll preservation, and reply/cache-priming assumptions.
 - Keep bootstrap logging focused on cache size, signal activity, retry use, and final settled counts.
