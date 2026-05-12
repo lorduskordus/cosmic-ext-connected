@@ -2,7 +2,7 @@
 
 All notable changes to Connected will be documented in this file.
 
-## [Unreleased]
+## [0.5.0] - 2026-05-12
 
 ### Added
 - **SMS: merged-conversation indicators and SMS-view toggle.** Conversations that Connected has merged from multiple phone-side threads (the iOS-reaction-over-SMS case) now show a small marker on the conversation list. A new toggle in the SMS view header switches between the merged and split views in one click — useful if the heuristic misfires for a particular conversation, or just to see what the phone's underlying thread structure looks like. The toggle shares state with the new SMS settings option.
