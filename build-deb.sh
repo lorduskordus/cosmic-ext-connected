@@ -28,6 +28,8 @@ cp data/$APPID.metainfo.xml deb_build/usr/share/metainfo/$APPID.metainfo.xml
 cp data/icons/hicolor/scalable/apps/$APPID.svg deb_build/usr/share/icons/hicolor/scalable/apps/$APPID.svg
 cp data/icons/hicolor/scalable/apps/$APPID-symbolic.svg deb_build/usr/share/icons/hicolor/scalable/apps/$APPID-symbolic.svg
 cp data/icons/hicolor/scalable/apps/$APPID-disconnected-symbolic.svg deb_build/usr/share/icons/hicolor/scalable/apps/$APPID-disconnected-symbolic.svg
+cp data/icons/hicolor/scalable/apps/$APPID-merged-symbolic.svg deb_build/usr/share/icons/hicolor/scalable/apps/$APPID-merged-symbolic.svg
+cp data/icons/hicolor/scalable/apps/$APPID-split-symbolic.svg deb_build/usr/share/icons/hicolor/scalable/apps/$APPID-split-symbolic.svg
 
 # Create control file
 cat > deb_build/DEBIAN/control <<EOL
