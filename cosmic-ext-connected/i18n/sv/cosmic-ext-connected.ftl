@@ -111,8 +111,8 @@ settings-sms-show-sender-desc = Visa vem som skickade meddelandet
 settings-sms-merge-reaction-threads = Sammanfoga trådar med många reaktioner
 settings-sms-merge-reaction-threads-desc =
    Grupper iOS reaktioner med konversationen de svarar på. Om du stänger av detta
-  återställs visningen per tråd, men det kan leda till att vissa svar levereras 
-  två gånger på mottagarsidan.
+   återställs visningen per tråd, men det kan leda till att vissa svar levereras
+   två gånger på mottagarsidan.
 
 # Inställningar för samtalsaviseringar
 settings-call-notifications = Samtalsaviseringar
