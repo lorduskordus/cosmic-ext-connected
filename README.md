@@ -8,6 +8,7 @@ A phone connectivity applet for the [COSMIC](https://github.com/pop-os/cosmic-ep
 
 - **Device Management** - Pair, unpair, and monitor connected devices (phones, tablets, laptops, desktops)
 - **SMS Messaging** - View conversations, reply, and compose new messages with contact lookup
+- **Smart SMS Threading** - Automatically merges conversations that iOS reaction-over-SMS splits into multiple threads on Android, with a toggle to disable if the heuristic misfires
 - **File Sharing** - Send and receive files and URLs, with desktop notifications
 - **Clipboard Sync** - Send clipboard content to your device
 - **Notifications** - View and dismiss phone notifications; desktop alerts for SMS and calls (with privacy controls)
@@ -41,7 +42,7 @@ Download the latest release from the [Releases](https://github.com/nwxnw/cosmic-
 
 Install:
 ```sh
-sudo apt install ./cosmic-ext-connected_0.3.0_amd64.deb
+sudo apt install ./cosmic-ext-connected_*_amd64.deb
 ```
 
 Uninstall:
@@ -53,7 +54,7 @@ sudo apt remove cosmic-ext-connected
 
 Install:
 ```sh
-flatpak install --user ./cosmic-ext-connected_0.3.0.flatpak
+flatpak install --user ./cosmic-ext-connected_*.flatpak
 ```
 
 Uninstall:
