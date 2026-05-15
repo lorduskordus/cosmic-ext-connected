@@ -27,6 +27,7 @@
   <launchable type="desktop-id">io.github.nwxnw.cosmic-ext-connected.desktop</launchable>
   <provides>
     <binary>cosmic-ext-connected</binary>
+    <id>com.system76.CosmicApplet</id>
   </provides>
   <requires>
     <display_length compare="ge">360</display_length>
