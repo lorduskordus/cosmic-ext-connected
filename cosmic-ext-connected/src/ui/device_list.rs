@@ -121,6 +121,7 @@ fn device_row<'a>(device: &'a DeviceInfo, config: &'a Config) -> Element<'a, Mes
             let warning_color = theme.cosmic().warning.base;
             TextStyle {
                 color: Some(warning_color.into()),
+                ..Default::default()
             }
         }
         text::caption(status_text)
