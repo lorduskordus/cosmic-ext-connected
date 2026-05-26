@@ -51,19 +51,9 @@ sudo pacman -S kdeconnect
 
 ## Installation
 
-Download the latest release from the [Releases](https://github.com/nwxnw/cosmic-ext-connected/releases) page.
+Install Connected from the Applets section of the COSMIC Store.
 
-### Debian/Ubuntu (.deb)
-
-Install:
-```sh
-sudo apt install ./cosmic-ext-connected_*_amd64.deb
-```
-
-Uninstall:
-```sh
-sudo apt remove cosmic-ext-connected
-```
+Alternatively, you can download the latest release from the [Releases](https://github.com/nwxnw/cosmic-ext-connected/releases) page and use the following instructions.
 
 ### Flatpak
 
@@ -75,6 +65,18 @@ flatpak install --user ./cosmic-ext-connected_*.flatpak
 Uninstall:
 ```sh
 flatpak uninstall --user io.github.nwxnw.cosmic-ext-connected
+```
+
+### Debian/Ubuntu (.deb)
+
+Install:
+```sh
+sudo apt install ./cosmic-ext-connected_*_amd64.deb
+```
+
+Uninstall:
+```sh
+sudo apt remove cosmic-ext-connected
 ```
 
 ### From source
@@ -113,6 +115,9 @@ Settings are accessible via the gear icon in the applet. Options include:
 
 - **Show battery percentage** - Display battery level in device list
 - **Show offline devices** - Show paired devices that aren't currently connected
+- **Show non-mobile devices** - Show desktops and laptops that aren't currently connected
+- **Show notifications** - Toggle desktop notifications. Additional notification settings in Notifications Settings page
+- **Merge reaction bucket threads** - Enable merging of threads split by iOS reactions
 - **File notifications** - Desktop notifications for received files
 - **SMS notifications** - Desktop notifications for incoming SMS (with sender/content privacy options)
 - **Call notifications** - Desktop notifications for incoming/missed calls (with name/number privacy options)
