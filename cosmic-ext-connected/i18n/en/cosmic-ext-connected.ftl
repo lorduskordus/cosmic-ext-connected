@@ -56,6 +56,7 @@ media = Media
 media-controls = Media Controls
 notifications = Notifications
 device-must-be-connected = Device must be connected to use actions
+device-offline-actions-unavailable = Other actions need this device online.
 send-to = Send to { $device }
 send-to-title = Send to { $device }
 share-text-with-title = Share text with { $device }
@@ -67,6 +68,7 @@ find-phone-failed = Failed to ring phone
 # Pairing
 pair = Pair
 unpair = Unpair
+unpair-offline-note = This device is offline. Unpairing takes effect now on your end; the other device finishes unpairing when it next connects.
 accept = Accept
 reject = Reject
 cancel = Cancel

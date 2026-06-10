@@ -774,6 +774,23 @@ impl Application for ConnectApplet {
                 if let Some(conn) = &self.dbus_connection {
                     tracing::info!("Unpairing from device: {}", device_id);
                     self.status_message = Some("Unpairing...".to_string());
+
+                    // An offline device would re-render the "must be connected" page
+                    // after unpair - pop back to the list so the status bar carries
+                    // the result. Reachable devices stay so you can re-pair in place.
+                    // item 3: when hidden_ids lands, also drop device_id from it here
+                    // (consider a dedicated UnpairResult to gate the prune on success).
+                    let reachable = self
+                        .devices
+                        .iter()
+                        .find(|d| d.id == device_id)
+                        .map(|d| d.is_reachable)
+                        .unwrap_or(false);
+                    if !reachable {
+                        self.selected_device = None;
+                        self.view_mode = ViewMode::DeviceList;
+                    }
+
                     return cosmic::app::Task::perform(
                         unpair_async(conn.clone(), device_id),
                         cosmic::Action::App,

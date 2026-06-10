@@ -61,159 +61,163 @@ pub fn view<'a>(device: &'a DeviceInfo, status_message: Option<&'a str>) -> Elem
     let pair_in_flight = device.is_pair_requested || device.is_pair_requested_by_peer;
     let actions: Option<Element<Message>> = if pair_in_flight {
         None
-    } else if !device.is_reachable {
-        Some(text::caption(fl!("device-must-be-connected")).into())
     } else if device.is_paired {
-        let device_id_for_media = device.id.clone();
         let device_id_for_unpair = device.id.clone();
         let mut items: Vec<Element<Message>> = Vec::new();
 
-        if class.is_mobile() {
-            // Mobile: SMS → Send-to submenu → Media → Find Phone.
-            let device_id_for_sms = device.id.clone();
-            let device_id_for_sendto = device.id.clone();
-            let device_type_for_sendto = device.device_type.clone();
-            let device_id_for_find = device.id.clone();
-            let device_label = device_type_label(&device.device_type);
-
-            let sms_row = row![
-                icon::from_name("mail-message-new-symbolic").size(24),
-                text::body(fl!("sms-messages")),
-                widget::space::horizontal(),
-                icon::from_name("go-next-symbolic").size(16),
-            ]
-            .spacing(sp.space_xs)
-            .align_y(Alignment::Center);
-            items.push(
-                applet::menu_button(sms_row)
-                    .on_press(Message::OpenSmsView(device_id_for_sms))
-                    .into(),
-            );
-
-            let sendto_row = row![
-                icon::from_name("document-send-symbolic").size(24),
-                text::body(fl!("send-to", device = device_label.as_str())),
-                widget::space::horizontal(),
-                icon::from_name("go-next-symbolic").size(16),
-            ]
-            .spacing(sp.space_xs)
-            .align_y(Alignment::Center);
-            items.push(
-                applet::menu_button(sendto_row)
-                    .on_press(Message::OpenSendToView(
-                        device_id_for_sendto,
-                        device_type_for_sendto,
-                    ))
-                    .into(),
-            );
-
-            let media_row = row![
-                icon::from_name("multimedia-player-symbolic").size(24),
-                text::body(fl!("media-controls")),
-                widget::space::horizontal(),
-                icon::from_name("go-next-symbolic").size(16),
-            ]
-            .spacing(sp.space_xs)
-            .align_y(Alignment::Center);
-            items.push(
-                applet::menu_button(media_row)
-                    .on_press(Message::OpenMediaView(device_id_for_media))
-                    .into(),
-            );
-
-            let find_row = row![
-                icon::from_name("audio-volume-high-symbolic").size(24),
-                text::body(fl!("find-phone")),
-                widget::space::horizontal(),
-            ]
-            .spacing(sp.space_xs)
-            .align_y(Alignment::Center);
-            items.push(
-                applet::menu_button(find_row)
-                    .on_press(Message::FindMyPhone(device_id_for_find))
-                    .into(),
-            );
+        if !device.is_reachable {
+            // Offline but paired: online-only actions are unavailable, but Unpair
+            // still works.
+            items.push(text::caption(fl!("device-offline-actions-unavailable")).into());
         } else {
-            // Non-mobile: inline share primitives as direct actions; Share Text
-            // navigates to a focused compose view. Media stays a submenu nav.
-            let device_id_for_file = device.id.clone();
-            let device_id_for_clipboard = device.id.clone();
-            let device_id_for_ping = device.id.clone();
-            let device_id_for_text = device.id.clone();
-            let device_type_for_text = device.device_type.clone();
+            let device_id_for_media = device.id.clone();
+            if class.is_mobile() {
+                // Mobile: SMS → Send-to submenu → Media → Find Phone.
+                let device_id_for_sms = device.id.clone();
+                let device_id_for_sendto = device.id.clone();
+                let device_type_for_sendto = device.device_type.clone();
+                let device_id_for_find = device.id.clone();
+                let device_label = device_type_label(&device.device_type);
 
-            let share_file_row = row![
-                icon::from_name("document-send-symbolic").size(24),
-                text::body(fl!("share-file")),
-                widget::space::horizontal(),
-            ]
-            .spacing(sp.space_xs)
-            .align_y(Alignment::Center);
-            items.push(
-                applet::menu_button(share_file_row)
-                    .on_press(Message::ShareFile(device_id_for_file))
-                    .into(),
-            );
+                let sms_row = row![
+                    icon::from_name("mail-message-new-symbolic").size(24),
+                    text::body(fl!("sms-messages")),
+                    widget::space::horizontal(),
+                    icon::from_name("go-next-symbolic").size(16),
+                ]
+                .spacing(sp.space_xs)
+                .align_y(Alignment::Center);
+                items.push(
+                    applet::menu_button(sms_row)
+                        .on_press(Message::OpenSmsView(device_id_for_sms))
+                        .into(),
+                );
 
-            let clipboard_row = row![
-                icon::from_name("edit-copy-symbolic").size(24),
-                text::body(fl!("share-clipboard")),
-                widget::space::horizontal(),
-            ]
-            .spacing(sp.space_xs)
-            .align_y(Alignment::Center);
-            items.push(
-                applet::menu_button(clipboard_row)
-                    .on_press(Message::SendClipboard(device_id_for_clipboard))
-                    .into(),
-            );
+                let sendto_row = row![
+                    icon::from_name("document-send-symbolic").size(24),
+                    text::body(fl!("send-to", device = device_label.as_str())),
+                    widget::space::horizontal(),
+                    icon::from_name("go-next-symbolic").size(16),
+                ]
+                .spacing(sp.space_xs)
+                .align_y(Alignment::Center);
+                items.push(
+                    applet::menu_button(sendto_row)
+                        .on_press(Message::OpenSendToView(
+                            device_id_for_sendto,
+                            device_type_for_sendto,
+                        ))
+                        .into(),
+                );
 
-            let ping_row = row![
-                icon::from_name("network-transmit-symbolic").size(24),
-                text::body(fl!("send-ping")),
-                widget::space::horizontal(),
-            ]
-            .spacing(sp.space_xs)
-            .align_y(Alignment::Center);
-            items.push(
-                applet::menu_button(ping_row)
-                    .on_press(Message::SendPing(device_id_for_ping))
-                    .into(),
-            );
+                let media_row = row![
+                    icon::from_name("multimedia-player-symbolic").size(24),
+                    text::body(fl!("media-controls")),
+                    widget::space::horizontal(),
+                    icon::from_name("go-next-symbolic").size(16),
+                ]
+                .spacing(sp.space_xs)
+                .align_y(Alignment::Center);
+                items.push(
+                    applet::menu_button(media_row)
+                        .on_press(Message::OpenMediaView(device_id_for_media))
+                        .into(),
+                );
 
-            let share_text_row = row![
-                icon::from_name("edit-paste-symbolic").size(24),
-                text::body(fl!("share-text")),
-                widget::space::horizontal(),
-                icon::from_name("go-next-symbolic").size(16),
-            ]
-            .spacing(sp.space_xs)
-            .align_y(Alignment::Center);
-            items.push(
-                applet::menu_button(share_text_row)
-                    .on_press(Message::OpenShareTextView(
-                        device_id_for_text,
-                        device_type_for_text,
-                    ))
-                    .into(),
-            );
+                let find_row = row![
+                    icon::from_name("audio-volume-high-symbolic").size(24),
+                    text::body(fl!("find-phone")),
+                    widget::space::horizontal(),
+                ]
+                .spacing(sp.space_xs)
+                .align_y(Alignment::Center);
+                items.push(
+                    applet::menu_button(find_row)
+                        .on_press(Message::FindMyPhone(device_id_for_find))
+                        .into(),
+                );
+            } else {
+                // Non-mobile: inline share primitives as direct actions; Share Text
+                // navigates to a focused compose view. Media stays a submenu nav.
+                let device_id_for_file = device.id.clone();
+                let device_id_for_clipboard = device.id.clone();
+                let device_id_for_ping = device.id.clone();
+                let device_id_for_text = device.id.clone();
+                let device_type_for_text = device.device_type.clone();
 
-            let media_row = row![
-                icon::from_name("multimedia-player-symbolic").size(24),
-                text::body(fl!("media-controls")),
-                widget::space::horizontal(),
-                icon::from_name("go-next-symbolic").size(16),
-            ]
-            .spacing(sp.space_xs)
-            .align_y(Alignment::Center);
-            items.push(
-                applet::menu_button(media_row)
-                    .on_press(Message::OpenMediaView(device_id_for_media))
-                    .into(),
-            );
+                let share_file_row = row![
+                    icon::from_name("document-send-symbolic").size(24),
+                    text::body(fl!("share-file")),
+                    widget::space::horizontal(),
+                ]
+                .spacing(sp.space_xs)
+                .align_y(Alignment::Center);
+                items.push(
+                    applet::menu_button(share_file_row)
+                        .on_press(Message::ShareFile(device_id_for_file))
+                        .into(),
+                );
+
+                let clipboard_row = row![
+                    icon::from_name("edit-copy-symbolic").size(24),
+                    text::body(fl!("share-clipboard")),
+                    widget::space::horizontal(),
+                ]
+                .spacing(sp.space_xs)
+                .align_y(Alignment::Center);
+                items.push(
+                    applet::menu_button(clipboard_row)
+                        .on_press(Message::SendClipboard(device_id_for_clipboard))
+                        .into(),
+                );
+
+                let ping_row = row![
+                    icon::from_name("network-transmit-symbolic").size(24),
+                    text::body(fl!("send-ping")),
+                    widget::space::horizontal(),
+                ]
+                .spacing(sp.space_xs)
+                .align_y(Alignment::Center);
+                items.push(
+                    applet::menu_button(ping_row)
+                        .on_press(Message::SendPing(device_id_for_ping))
+                        .into(),
+                );
+
+                let share_text_row = row![
+                    icon::from_name("edit-paste-symbolic").size(24),
+                    text::body(fl!("share-text")),
+                    widget::space::horizontal(),
+                    icon::from_name("go-next-symbolic").size(16),
+                ]
+                .spacing(sp.space_xs)
+                .align_y(Alignment::Center);
+                items.push(
+                    applet::menu_button(share_text_row)
+                        .on_press(Message::OpenShareTextView(
+                            device_id_for_text,
+                            device_type_for_text,
+                        ))
+                        .into(),
+                );
+
+                let media_row = row![
+                    icon::from_name("multimedia-player-symbolic").size(24),
+                    text::body(fl!("media-controls")),
+                    widget::space::horizontal(),
+                    icon::from_name("go-next-symbolic").size(16),
+                ]
+                .spacing(sp.space_xs)
+                .align_y(Alignment::Center);
+                items.push(
+                    applet::menu_button(media_row)
+                        .on_press(Message::OpenMediaView(device_id_for_media))
+                        .into(),
+                );
+            }
         }
 
-        // Divider + Unpair — shared across classes.
+        // Divider + Unpair — shared across classes and reachability state.
         items.push(applet::padded_control(widget::divider::horizontal::default()).into());
         let unpair_row = row![
             icon::from_name("list-remove-symbolic").size(24),
@@ -228,8 +232,13 @@ pub fn view<'a>(device: &'a DeviceInfo, status_message: Option<&'a str>) -> Elem
                 .into(),
         );
 
+        //Unpairing an offline device is one-sided until it reconnects
+        if !device.is_reachable {
+            items.push(text::caption(fl!("unpair-offline-note")).into());
+        }
+
         Some(column(items).spacing(sp.space_xxxs).into())
-    } else {
+    } else if device.is_reachable {
         let device_id_for_pair = device.id.clone();
         let pair_row = row![
             icon::from_name("list-add-symbolic")
@@ -250,6 +259,9 @@ pub fn view<'a>(device: &'a DeviceInfo, status_message: Option<&'a str>) -> Elem
                 .on_press(Message::RequestPair(device_id_for_pair))
                 .into(),
         )
+    } else {
+        //Unpaired and offline: nothing actionable and filtered from the list
+        Some(text::caption(fl!("device-must-be-connected")).into())
     };
 
     // Notifications section
