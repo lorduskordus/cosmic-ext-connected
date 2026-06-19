@@ -8,7 +8,7 @@ A phone connectivity applet for the [COSMIC](https://github.com/pop-os/cosmic-ep
 
 - **Device Management** - Pair, unpair, and monitor connected devices (phones, tablets, laptops, desktops)
 - **SMS Messaging** - View conversations, reply, and compose new messages with contact lookup
-- **Smart SMS Threading** - Automatically merges conversations that iOS reaction-over-SMS splits into multiple threads on Android, with a toggle to disable if the heuristic misfires
+- **Smart SMS Threading** - Automatically merges conversations that iOS reaction-over-SMS splits into multiple threads on Android, with a one-click toggle to view them split
 - **File Sharing** - Send and receive files and URLs, with desktop notifications
 - **Clipboard Sync** - Send clipboard content to your device
 - **Notifications** - View and dismiss phone notifications; desktop alerts for SMS and calls (with privacy controls)
@@ -18,7 +18,7 @@ A phone connectivity applet for the [COSMIC](https://github.com/pop-os/cosmic-ep
 
  ### SMS Reaction-Thread Merging
 
-When someone reacts to an SMS from iOS, Android often files the reaction into a separate thread from the original conversation. Connected detects these split threads and merges them on the desktop side, with a one-click toggle to switch between merged and split views.
+When someone reacts to an SMS from iOS, Android often files the reaction into a separate thread from the original conversation. Connected detects these split threads and merges them on the desktop side, with a one-click toggle to switch between merged and split views. Merging is on by default and recommended: besides reuniting the conversation, it routes your replies so the recipient receives a single copy. With merging off, replying in a split thread can deliver duplicate copies. Only use the split view if the merge heuristic ever combines conversations it shouldn't.
 
   <table>
     <tr>
@@ -117,7 +117,6 @@ Settings are accessible via the gear icon in the applet. Options include:
 - **Show offline devices** - Show paired devices that aren't currently connected
 - **Show non-mobile devices** - Show desktops and laptops that aren't currently connected
 - **Show notifications** - Toggle desktop notifications. Additional notification settings in Notifications Settings page
-- **Merge reaction bucket threads** - Enable merging of threads split by iOS reactions
 - **File notifications** - Desktop notifications for received files
 - **SMS notifications** - Desktop notifications for incoming SMS (with sender/content privacy options)
 - **Call notifications** - Desktop notifications for incoming/missed calls (with name/number privacy options)
