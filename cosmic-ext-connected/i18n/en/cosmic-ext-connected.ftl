@@ -79,9 +79,6 @@ waiting-for-device = Waiting for device to accept...
 device-not-paired = Device is not paired
 device-offline = Device is offline
 
-# Settings page
-settings-non-mobile = Show non-mobile devices
-
 # Device type captions (shown under device name on device page)
 device-type-phone = Phone
 device-type-tablet = Tablet

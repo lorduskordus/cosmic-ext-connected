@@ -11,7 +11,7 @@ use cosmic::widget::{self, settings, text};
 use cosmic::Element;
 
 /// Render the main settings view (general settings + nav to notification settings).
-pub fn view_settings(config: &Config) -> Element<'_, Message> {
+pub fn view_settings(_config: &Config) -> Element<'_, Message> {
     let sp = cosmic::theme::spacing();
 
     let header = applet::padded_control(
@@ -26,13 +26,7 @@ pub fn view_settings(config: &Config) -> Element<'_, Message> {
     );
 
     // General section
-    let general_section = settings::section()
-        .add(
-            settings::item::builder(fl!("settings-non-mobile"))
-                .toggler(config.show_non_mobile_devices, move |_| {
-                    Message::ToggleSetting(SettingKey::ShowNonMobileDevices)
-                }),
-        );
+    let general_section = settings::section();
 
     // Navigation to notification settings sub-page
     let notif_nav_row = row![

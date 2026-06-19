@@ -80,7 +80,6 @@ device-offline = Enhet är offline
 
 # Inställningssida
 notification-settings = Aviseringsinställningar
-settings-non-mobile = Visa icke-mobila enheter
 settings-sms-section = SMS meddelanden
 settings-call-section = Samtal
 settings-file-section = Filöverföringar

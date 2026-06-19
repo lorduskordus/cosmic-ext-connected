@@ -288,7 +288,6 @@ pub enum Message {
 /// Keys for boolean settings that can be toggled.
 #[derive(Debug, Clone)]
 pub enum SettingKey {
-    ShowNonMobileDevices,
     SmsNotifications,
     SmsShowContent,
     SmsShowSender,
@@ -985,9 +984,6 @@ impl Application for ConnectApplet {
             }
             Message::ToggleSetting(key) => {
                 match key {
-                    SettingKey::ShowNonMobileDevices => {
-                        self.config.show_non_mobile_devices = !self.config.show_non_mobile_devices;
-                    }
                     SettingKey::SmsNotifications => {
                         self.config.sms_notifications = !self.config.sms_notifications;
                     }

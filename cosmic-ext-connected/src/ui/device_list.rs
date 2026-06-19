@@ -45,7 +45,7 @@ pub fn view<'a>(
         .align_y(Alignment::Center),
     );
 
-    let groups = partition_devices(devices, config);
+    let groups = partition_devices(devices);
 
     let mut content = column![header].spacing(sp.space_xxxs);
 
@@ -121,10 +121,8 @@ fn group_header<'a>(kind: GroupKind, count: usize, expanded: bool) -> Element<'a
 
 /// Partition devices into ordered display groups
 /// Order: Connected -> Pairing Requests -> Available -> Offline
-fn partition_devices<'a>(
-    devices: &'a [DeviceInfo],
-    config: &Config,
-) -> Vec<(GroupKind, Vec<&'a DeviceInfo>)> {
+fn partition_devices(
+    devices: &[DeviceInfo]) -> Vec<(GroupKind, Vec<&DeviceInfo>)> {
     let mut connected = Vec::new();
     let mut pairing = Vec::new();
     let mut available = Vec::new();
@@ -136,12 +134,8 @@ fn partition_devices<'a>(
         } else if d.is_reachable && d.is_paired {
             connected.push(d);
         } else if d.is_reachable && !d.is_paired {
-            // "Available to pair". Preserve today's gate: unpaired non-mobile
-            // devices stay hidden unless the user opted in.
-            let class = DeviceClass::from_device_type(&d.device_type);
-            if class.is_mobile() || config.show_non_mobile_devices {
-                available.push(d);
-            }
+            // "Available to pair" - all reachable unpaired devices
+            available.push(d);
         } else if !d.is_reachable && d.is_paired {
             offline.push(d);
         }
