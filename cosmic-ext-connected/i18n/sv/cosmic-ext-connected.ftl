@@ -79,9 +79,6 @@ device-not-paired = Enheten är inte parad
 device-offline = Enhet är offline
 
 # Inställningssida
-settings-battery-desc = Visa batterinivå bredvid anslutna enheter
-settings-offline-desc = Visa parade enheter som inte är anslutna för närvarande
-settings-notifications-desc = Visa aviseringar från anslutna enheter
 notification-settings = Aviseringsinställningar
 settings-non-mobile = Visa icke-mobila enheter
 settings-sms-section = SMS meddelanden
@@ -97,19 +94,13 @@ device-type-unknown = Enhet
 
 # Inställningar för SMS-aviseringar
 settings-sms-notifications = SMS-aviseringar
-settings-sms-notifications-desc = Visa skrivbordsavisering när nytt SMS kommer in
 settings-sms-show-content = Visa meddelandeinnehåll
-settings-sms-show-content-desc = Visa förhandsgranskning av meddelande i avisering
 settings-sms-show-sender = Visa avsändarnamn
-settings-sms-show-sender-desc = Visa vem som skickade meddelandet
 
 # Inställningar för samtalsaviseringar
 settings-call-notifications = Samtalsaviseringar
-settings-call-notifications-desc = Visa skrivbordsaviseringar för inkommande och missade samtal
 settings-call-show-number = Visa telefonnummer
-settings-call-show-number-desc = Visa uppringarens telefonnummer i avisering
 settings-call-show-name = Visa uppringarens namn
-settings-call-show-name-desc = Visa kontaktnamn om tillgängligt
 
 # SMS Aviseringstext
 sms-notification-title = Nytt SMS
@@ -124,11 +115,9 @@ missed-call-from = Missat samtal från { $name }
 
 # Inställningar för filaviseringar
 settings-file-notifications = Filaviseringar
-settings-file-notifications-desc = Visa aviseringar när filer tas emot
 
 # Inställningar för aviseringslängd
 settings-notification-timeout = Aviseringslängd
-settings-notification-timeout-desc = Hur länge aviseringar visas på skärmen
 notification-timeout-seconds = { $seconds }s
 
 # Filmeddelandetext
