@@ -28,12 +28,6 @@ pub fn view_settings(config: &Config) -> Element<'_, Message> {
     // General section
     let general_section = settings::section()
         .add(
-            settings::item::builder(fl!("settings-battery"))
-                .toggler(config.show_battery_percentage, move |_| {
-                    Message::ToggleSetting(SettingKey::ShowBatteryPercentage)
-                }),
-        )
-        .add(
             settings::item::builder(fl!("settings-offline"))
                 .toggler(config.show_offline_devices, move |_| {
                     Message::ToggleSetting(SettingKey::ShowOfflineDevices)

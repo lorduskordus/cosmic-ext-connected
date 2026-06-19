@@ -80,7 +80,6 @@ device-not-paired = Device is not paired
 device-offline = Device is offline
 
 # Settings page
-settings-battery = Show battery percentage
 settings-offline = Show offline devices
 settings-non-mobile = Show non-mobile devices
 settings-notifications = Show notifications

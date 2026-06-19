@@ -288,7 +288,6 @@ pub enum Message {
 /// Keys for boolean settings that can be toggled.
 #[derive(Debug, Clone)]
 pub enum SettingKey {
-    ShowBatteryPercentage,
     ShowOfflineDevices,
     ShowNonMobileDevices,
     ForwardNotifications,
@@ -988,9 +987,6 @@ impl Application for ConnectApplet {
             }
             Message::ToggleSetting(key) => {
                 match key {
-                    SettingKey::ShowBatteryPercentage => {
-                        self.config.show_battery_percentage = !self.config.show_battery_percentage;
-                    }
                     SettingKey::ShowOfflineDevices => {
                         self.config.show_offline_devices = !self.config.show_offline_devices;
                     }

@@ -10,8 +10,6 @@ pub const APP_ID: &str = "io.github.nwxnw.cosmic-ext-connected";
 #[derive(Debug, Clone, Serialize, Deserialize, CosmicConfigEntry, PartialEq, Eq)]
 #[version = 7]
 pub struct Config {
-    /// Show battery percentage in device list
-    pub show_battery_percentage: bool,
     /// Show offline devices in device list
     pub show_offline_devices: bool,
     /// Show unpaired non-mobile devices (desktops, laptops, TVs) in device list
@@ -48,7 +46,6 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            show_battery_percentage: true,
             show_offline_devices: true,
             show_non_mobile_devices: false,
             group_offline_expanded: false,

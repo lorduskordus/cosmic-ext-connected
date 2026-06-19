@@ -79,7 +79,6 @@ device-not-paired = Enheten är inte parad
 device-offline = Enhet är offline
 
 # Inställningssida
-settings-battery = Visa batteriprocent
 settings-battery-desc = Visa batterinivå bredvid anslutna enheter
 settings-offline = Visa offline enheter
 settings-offline-desc = Visa parade enheter som inte är anslutna för närvarande

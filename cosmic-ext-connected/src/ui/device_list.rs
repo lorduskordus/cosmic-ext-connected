@@ -208,18 +208,17 @@ fn device_row<'a>(device: &'a DeviceInfo, config: &'a Config) -> Element<'a, Mes
 
     // Add battery info if available and enabled in settings
     // KDE Connect returns -1 when battery level is unknown, so filter those out
-    if config.show_battery_percentage {
-        if let (Some(level), Some(charging)) = (device.battery_level, device.battery_charging) {
-            if level >= 0 {
-                let battery_text = if charging {
-                    format!("{}%+", level)
-                } else {
-                    format!("{}%", level)
-                };
-                row_content = row_content.push(text::caption(battery_text));
-            }
+    if let (Some(level), Some(charging)) = (device.battery_level, device.battery_charging) {
+        if level >= 0 {
+            let battery_text = if charging {
+                format!("{}%+", level)
+            } else {
+                format!("{}%", level)
+            };
+            row_content = row_content.push(text::caption(battery_text));
         }
     }
+
 
     // Add notification count badge if there are notifications and notifications are enabled
     if config.forward_notifications && !device.notifications.is_empty() {
