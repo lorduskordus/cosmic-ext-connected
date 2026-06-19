@@ -38,12 +38,6 @@ pub fn view_settings(config: &Config) -> Element<'_, Message> {
                 .toggler(config.show_non_mobile_devices, move |_| {
                     Message::ToggleSetting(SettingKey::ShowNonMobileDevices)
                 }),
-        )
-        .add(
-            settings::item::builder(fl!("settings-notifications"))
-                .toggler(config.forward_notifications, move |_| {
-                    Message::ToggleSetting(SettingKey::ForwardNotifications)
-                }),
         );
 
     // Navigation to notification settings sub-page

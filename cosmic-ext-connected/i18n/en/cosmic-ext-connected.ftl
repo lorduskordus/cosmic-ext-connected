@@ -82,7 +82,6 @@ device-offline = Device is offline
 # Settings page
 settings-offline = Show offline devices
 settings-non-mobile = Show non-mobile devices
-settings-notifications = Show notifications
 
 # Device type captions (shown under device name on device page)
 device-type-phone = Phone

@@ -82,7 +82,6 @@ device-offline = Zařízení je offline
 # Settings page
 settings-offline = Zobrazit offline zařízení
 settings-non-mobile = Zobrazit nemobilní zařízení
-settings-notifications = Zobrazit oznámení
 
 # Device type captions (shown under device name on device page)
 device-type-phone = Telefon

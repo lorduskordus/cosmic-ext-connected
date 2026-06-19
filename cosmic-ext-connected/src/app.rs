@@ -290,7 +290,6 @@ pub enum Message {
 pub enum SettingKey {
     ShowOfflineDevices,
     ShowNonMobileDevices,
-    ForwardNotifications,
     SmsNotifications,
     SmsShowContent,
     SmsShowSender,
@@ -992,9 +991,6 @@ impl Application for ConnectApplet {
                     }
                     SettingKey::ShowNonMobileDevices => {
                         self.config.show_non_mobile_devices = !self.config.show_non_mobile_devices;
-                    }
-                    SettingKey::ForwardNotifications => {
-                        self.config.forward_notifications = !self.config.forward_notifications;
                     }
                     SettingKey::SmsNotifications => {
                         self.config.sms_notifications = !self.config.sms_notifications;

@@ -82,7 +82,6 @@ device-offline = Enhet är offline
 settings-battery-desc = Visa batterinivå bredvid anslutna enheter
 settings-offline = Visa offline enheter
 settings-offline-desc = Visa parade enheter som inte är anslutna för närvarande
-settings-notifications = Visa aviseringar
 settings-notifications-desc = Visa aviseringar från anslutna enheter
 notification-settings = Aviseringsinställningar
 settings-non-mobile = Visa icke-mobila enheter

@@ -16,8 +16,6 @@ pub struct Config {
     pub show_non_mobile_devices: bool,
     /// Whether the collapsible "offline" device group is expanded
     pub group_offline_expanded: bool,
-    /// Enable desktop notifications for phone notifications
-    pub forward_notifications: bool,
     /// Number of SMS messages to load per page/request
     pub messages_per_page: u32,
     /// Enable desktop notifications for incoming SMS messages
@@ -49,7 +47,6 @@ impl Default for Config {
             show_offline_devices: true,
             show_non_mobile_devices: false,
             group_offline_expanded: false,
-            forward_notifications: true,
             messages_per_page: 10,
             sms_notifications: true,
             sms_notification_show_content: true,

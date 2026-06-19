@@ -74,12 +74,12 @@ pub fn view<'a>(
                 list = list.push(group_header(kind, members.len(), expanded));
                 if expanded {
                     let rows: Vec<Element<Message>> =
-                        members.iter().map(|d| device_row(d, config)).collect();
+                        members.iter().map(|d| device_row(d)).collect();
                     list = list.push(column(rows).spacing(sp.space_xxs));
                 }
             } else {
                 let rows: Vec<Element<Message>> =
-                    members.iter().map(|d| device_row(d, config)).collect();
+                    members.iter().map(|d| device_row(d)).collect();
                 list = list.push(column(rows).spacing(sp.space_xxs));
             }
         }
@@ -165,7 +165,7 @@ fn partition_devices<'a>(
 }
 
 /// Render a single device row.
-fn device_row<'a>(device: &'a DeviceInfo, config: &'a Config) -> Element<'a, Message> {
+fn device_row(device: &DeviceInfo) -> Element<'_, Message> {
     let sp = cosmic::theme::spacing();
 
     let (status_text, is_offline) = match (
@@ -219,9 +219,8 @@ fn device_row<'a>(device: &'a DeviceInfo, config: &'a Config) -> Element<'a, Mes
         }
     }
 
-
-    // Add notification count badge if there are notifications and notifications are enabled
-    if config.forward_notifications && !device.notifications.is_empty() {
+    // Add notification count badge if there are notifications
+    if !device.notifications.is_empty() {
         row_content = row_content.push(
             widget::container(text::caption(format!("{}", device.notifications.len())))
                 .padding([2, sp.space_xxxs as u16 + 2])
