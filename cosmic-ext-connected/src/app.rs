@@ -24,7 +24,7 @@ use crate::subscriptions::{
 };
 use crate::ui;
 use crate::views::send_to::{view_send_to, view_share_text, SendToParams, ShareTextParams};
-use crate::views::settings::{view_notification_settings, view_settings};
+use crate::views::settings::{view_about, view_notification_settings, view_settings};
 use cosmic::app::Core;
 use cosmic::iced::core::window;
 use cosmic::iced::platform_specific::shell::wayland::commands::popup::{destroy_popup, get_popup};
@@ -134,6 +134,12 @@ pub enum Message {
     // Settings
     /// Toggle the settings view
     ToggleSettings,
+    /// Open the About sub page
+    OpenAbout,
+    /// Return from About to main settings page
+    BackFromAbout,
+    /// Open an external URL in the default browser
+    OpenUrl(String),
     /// Navigate to notification settings sub-page
     OpenNotificationSettings,
     /// Return from notification settings to main settings
@@ -370,6 +376,8 @@ pub enum ViewMode {
     Settings,
     /// Notification settings sub-page
     NotificationSettings,
+    /// About sub-page
+    About,
     /// Media player controls
     MediaControls,
 }
@@ -963,6 +971,20 @@ impl Application for ConnectApplet {
             }
             Message::BackFromNotificationSettings => {
                 self.view_mode = ViewMode::Settings;
+            }
+            Message::OpenAbout => {
+                self.view_mode = ViewMode::About;
+            }
+            Message::BackFromAbout => {
+                self.view_mode = ViewMode::Settings;
+            }
+            Message::OpenUrl(url) => {
+                return cosmic::app::Task::perform(
+                    async move {
+                        let _ = tokio::process::Command::new("xdg-open").arg(url).spawn();
+                    },
+                    |_| cosmic::Action::App(Message::RefreshDevices),
+                );
             }
             Message::ToggleSetting(key) => {
                 match key {
@@ -1649,6 +1671,7 @@ impl Application for ConnectApplet {
 
         // Route to appropriate view based on view mode
         let content: Element<Message> = match &self.view_mode {
+            ViewMode::About => view_about(),
             ViewMode::Settings => view_settings(&self.config),
             ViewMode::NotificationSettings => view_notification_settings(&self.config),
             ViewMode::ConversationList => self.sms.view(

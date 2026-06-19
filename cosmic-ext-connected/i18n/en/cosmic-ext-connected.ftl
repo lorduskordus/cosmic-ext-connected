@@ -196,3 +196,9 @@ attachment-failed = Failed to load attachment
 # Reaction-thread merging UI
 merge-toggle-on-tooltip = Reaction replies are grouped into their conversation. Click to show as separate threads.
 merge-toggle-off-tooltip = Reaction-reply threads are shown separately - replies may be duplicated. Click to group them.
+
+# About page
+about = About
+about-summary = Phone-to-desktop connectivity for COSMIC
+about-homepage = Homepage
+about-issues = Report an issue
