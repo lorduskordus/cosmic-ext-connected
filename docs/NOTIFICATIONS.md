@@ -95,13 +95,29 @@ notification
     .body(&file_name)
     .icon("folder-download-symbolic")
     .appname("Connected")
-    .timeout(notify_rust::Timeout::Never);
-show_and_auto_close(notification, timeout_ms, "file").await;
+    .timeout(notify_rust::Timeout::Milliseconds(NORMAL_NOTIFICATION_TIMEOUT_MS));
+// .show() blocks (zbus), so run it on a blocking thread; log the result
+// rather than discarding it (a bare `let _ = …show()` silently swallows
+// errors/panics — the cause of a long "missing SMS toast" hunt in v0.6.0).
+match tokio::task::spawn_blocking(move || notification.show()).await {
+    Ok(Ok(_handle)) => tracing::debug!("File notification shown"),
+    Ok(Err(e)) => tracing::warn!("Failed to show file notification: {}", e),
+    Err(e) => tracing::warn!("File notification task panicked: {}", e),
+}
 ```
 
 ### Timeout Handling
 
-COSMIC's notification daemon ignores the freedesktop `expire_timeout` hint and uses its own fixed duration. All notification types (SMS, call, file) are created with `Timeout::Never` and explicitly closed after the user-configured `notification_timeout_secs` via `show_and_auto_close()` in `app.rs`.
+COSMIC's notification daemon **clamps** the freedesktop `expire_timeout` hint — it does **not** ignore it. Displayed duration = `min(requested, daemon cap)`, where the cap is `max_timeout_normal` (default 5000 ms) for normal/low urgency; urgent notifications are uncapped (`max_timeout_urgent = None`).
+
+Connected requests a large bounded timeout and **defers the real duration to COSMIC** (so a future raised cap is honored automatically, and the default is 5 s today). There is no in-app duration setting and no manual close:
+
+- **Normal toasts** (SMS / file / missed-call) request `NORMAL_NOTIFICATION_TIMEOUT_MS` (30 s) → clamped to the daemon's normal cap (5 s by default).
+- **The critical incoming-call toast** requests `CALL_RING_TIMEOUT_MS` (30 s), which is the *literal* on-screen time since urgent notifications are uncapped — a distinct mechanism from the normal path despite the equal number. (Not `Timeout::Never`: Connected has no active dismissal on call-end, so `Never` would leave a stale toast.)
+
+Both constants live in `constants.rs::notifications`. The prior model — a user-configured `notification_timeout_secs` slider plus a `Timeout::Never` + `show_and_auto_close()` manual-close workaround built on the mistaken belief that the daemon ignored `expire_timeout` — was **removed in v0.6.0**.
+
+> Note: every notification site logs the `.show()` result (a `match`, not `let _ = …`). The success arm is `debug!` (suppressed in release, which defaults to the `warn` filter — see `main.rs`); failure/panic arms are `warn!` so they surface in release builds.
 
 ## Cross-Process Deduplication
 
