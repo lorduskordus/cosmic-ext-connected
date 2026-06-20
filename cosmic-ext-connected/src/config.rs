@@ -31,8 +31,6 @@ pub struct Config {
     pub call_notification_show_name: bool,
     /// Enable desktop notifications for received files
     pub file_notifications: bool,
-    /// How long notifications stay on screen (seconds)
-    pub notification_timeout_secs: u32,
 }
 
 impl Default for Config {
@@ -47,7 +45,6 @@ impl Default for Config {
             call_notification_show_number: true,
             call_notification_show_name: true,
             file_notifications: true,
-            notification_timeout_secs: crate::constants::notifications::DEFAULT_TIMEOUT_SECS,
         }
     }
 }

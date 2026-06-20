@@ -2,7 +2,6 @@
 
 use crate::app::{Message, SettingKey};
 use crate::config::Config;
-use crate::constants::notifications::{MAX_TIMEOUT_SECS, MIN_TIMEOUT_SECS};
 use crate::fl;
 use cosmic::applet;
 use cosmic::iced::widget::row;
@@ -187,32 +186,10 @@ pub fn view_notification_settings(config: &Config) -> Element<'_, Message> {
             }),
     );
 
-    // Notification timeout section
-    let label = fl!(
-        "notification-timeout-seconds",
-        seconds = config.notification_timeout_secs.to_string()
-    );
-    let slider = widget::slider(
-        MIN_TIMEOUT_SECS..=MAX_TIMEOUT_SECS,
-        config.notification_timeout_secs,
-        Message::SetNotificationTimeout,
-    );
-    let slider_control = row![
-        slider,
-        widget::text::caption(label).width(Length::Fixed(36.0)),
-    ]
-    .spacing(sp.space_xxs)
-    .align_y(Alignment::Center)
-    .width(Length::Fixed(160.0));
-
-    let timeout_section = settings::section()
-        .add(settings::item::builder(fl!("settings-notification-timeout")).control(slider_control));
-
     let sections = settings::view_column(vec![
         sms_section.into(),
         call_section.into(),
         file_section.into(),
-        timeout_section.into(),
     ]);
 
     let header = applet::padded_control(

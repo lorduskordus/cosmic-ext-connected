@@ -117,10 +117,6 @@ missed-call-from = Zmeškaný hovor od { $name }
 settings-file-section = Přenosy souborů
 settings-file-notifications = Zobrazit přenosy souborů
 
-# Notification timeout settings
-settings-notification-timeout = Doba trvání
-notification-timeout-seconds = { $seconds } s
-
 # File Notification text
 file-received = Soubor přijat
 file-received-from = Soubor přijat od { $device }

@@ -5,7 +5,6 @@
 use crate::app::{LoadingPhase, Message, SmsLoadingState};
 use crate::config::Config;
 use crate::fl;
-use crate::notifications::show_and_auto_close;
 use crate::sms::logical::{merge_into_logical, split_candidate_thread_ids, LogicalConversation};
 use crate::sms::{
     conversation_list_subscription, fetch_older_messages_async, request_attachment_async,
@@ -14,6 +13,7 @@ use crate::sms::{
 };
 use crate::subscriptions::conversation_message_subscription;
 use crate::constants::sms::MESSAGES_PER_PAGE;
+use crate::constants::notifications::NORMAL_NOTIFICATION_TIMEOUT_MS;
 use cosmic::iced::widget::scrollable;
 use cosmic::iced::{clipboard, Subscription};
 use cosmic::widget;
@@ -1203,7 +1203,6 @@ impl SmsConversationStore {
                 // Capture config settings
                 let show_sender = ctx.config.sms_notification_show_sender;
                 let show_content = ctx.config.sms_notification_show_content;
-                let timeout_ms = ctx.config.notification_timeout_secs * 1000;
                 let message_body = message.body.clone();
 
                 // Resolve sender name: use cached contacts if available, otherwise load from disk
@@ -1252,8 +1251,14 @@ impl SmsConversationStore {
                                 .body(&body)
                                 .icon("phone-symbolic")
                                 .appname("Connected")
-                                .timeout(notify_rust::Timeout::Never);
-                            show_and_auto_close(notification, timeout_ms, "SMS").await;
+                                .timeout(notify_rust::Timeout::Milliseconds(NORMAL_NOTIFICATION_TIMEOUT_MS));
+                            match tokio::task::spawn_blocking(move || notification.show()).await {
+                                Ok(Ok(_handle)) => tracing::debug!("SMS notification shown"),
+                                Ok(Err(e)) => {
+                                    tracing::warn!("Failed to show SMS notification: {}", e)
+                                }
+                                Err(e) => tracing::warn!("SMS notification task panicked: {}", e),
+                            }
                         },
                         |_| cosmic::Action::App(Message::RefreshDevices),
                     ),

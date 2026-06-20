@@ -3,7 +3,7 @@
 use crate::config::Config;
 use crate::constants::{
     dbus::{PENDING_REFRESH_TICK_SECS, SIGNAL_REFRESH_DEBOUNCE_SECS},
-    notifications::{MAX_TIMEOUT_SECS, MIN_TIMEOUT_SECS},
+    notifications::{NORMAL_NOTIFICATION_TIMEOUT_MS,CALL_RING_TIMEOUT_MS},
     refresh,
 };
 use crate::device::{
@@ -149,7 +149,6 @@ pub enum Message {
     /// Expand/collapse a collapsible device group (Offline)
     ToggleDeviceGroup(GroupKind),
     /// Set the notification timeout duration (seconds)
-    SetNotificationTimeout(u32),
 
     // SMS
     /// Open SMS view for a device
@@ -1020,14 +1019,6 @@ impl Application for ConnectApplet {
                     tracing::error!(?err, "Failed to save config");
                 }
             }
-            Message::SetNotificationTimeout(secs) => {
-                self.config.notification_timeout_secs =
-                    secs.clamp(MIN_TIMEOUT_SECS, MAX_TIMEOUT_SECS);
-                tracing::debug!("Settings updated");
-                if let Err(err) = self.config.save() {
-                    tracing::error!(?err, "Failed to save config");
-                }
-            }
             Message::ToggleDeviceGroup(kind) => {
                 if kind == GroupKind::Offline {
                     self.config.group_offline_expanded = !self.config.group_offline_expanded;
@@ -1454,7 +1445,7 @@ impl Application for ConnectApplet {
                 contact_name,
             } => {
                 // Build notification based on event type and privacy settings
-                let (summary, icon, urgency) = match event.as_str() {
+                let (summary, icon, urgency, timeout_ms) = match event.as_str() {
                     "callReceived" => {
                         let text = if self.config.call_notification_show_name
                             && !contact_name.is_empty()
@@ -1466,7 +1457,12 @@ impl Application for ConnectApplet {
                         } else {
                             fl!("incoming-call")
                         };
-                        (text, "call-start-symbolic", notify_rust::Urgency::Critical)
+                        (
+                            text,
+                            "call-start-symbolic",
+                            notify_rust::Urgency::Critical,
+                            CALL_RING_TIMEOUT_MS,
+                        )
                     }
                     "missedCall" => {
                         let text = if self.config.call_notification_show_name
@@ -1479,7 +1475,12 @@ impl Application for ConnectApplet {
                         } else {
                             fl!("missed-call")
                         };
-                        (text, "call-missed-symbolic", notify_rust::Urgency::Normal)
+                        (
+                            text,
+                            "call-missed-symbolic",
+                            notify_rust::Urgency::Normal,
+                            NORMAL_NOTIFICATION_TIMEOUT_MS,
+                        )
                     }
                     _ => {
                         tracing::debug!("Unknown call event type: {}", event);
@@ -1494,8 +1495,6 @@ impl Application for ConnectApplet {
                     device_name
                 );
 
-                let timeout_ms = self.config.notification_timeout_secs * 1000;
-
                 // Show notification
                 return cosmic::app::Task::perform(
                     async move {
@@ -1506,9 +1505,12 @@ impl Application for ConnectApplet {
                             .icon(icon)
                             .appname("Connected")
                             .urgency(urgency)
-                            .timeout(notify_rust::Timeout::Never);
-                        crate::notifications::show_and_auto_close(notification, timeout_ms, "call")
-                            .await;
+                            .timeout(notify_rust::Timeout::Milliseconds(timeout_ms));
+                        match tokio::task::spawn_blocking(move || notification.show()).await {
+                            Ok(Ok(_handle)) => tracing::debug!("Call notification shown"),
+                            Ok(Err(e)) => tracing::warn!("Failed to show call notification: {}", e),
+                            Err(e) => tracing::warn!("Call notification task panicked: {}", e),
+                        }
                     },
                     |_| cosmic::Action::App(Message::RefreshDevices),
                 );
@@ -1538,7 +1540,6 @@ impl Application for ConnectApplet {
                 if self.config.file_notifications {
                     let summary = fl!("file-received-from", device = device_name.clone());
                     let file_name_clone = file_name.clone();
-                    let timeout_ms = self.config.notification_timeout_secs * 1000;
 
                     return cosmic::app::Task::perform(
                         async move {
@@ -1548,13 +1549,14 @@ impl Application for ConnectApplet {
                                 .body(&file_name_clone)
                                 .icon("folder-download-symbolic")
                                 .appname("Connected")
-                                .timeout(notify_rust::Timeout::Never);
-                            crate::notifications::show_and_auto_close(
-                                notification,
-                                timeout_ms,
-                                "file",
-                            )
-                            .await;
+                                .timeout(notify_rust::Timeout::Milliseconds(NORMAL_NOTIFICATION_TIMEOUT_MS));
+                            match tokio::task::spawn_blocking(move || notification.show()).await {
+                                Ok(Ok(_handle)) => tracing::debug!("File notification shown"),
+                                Ok(Err(e)) => {
+                                    tracing::warn!("Failed to show file notification: {}", e)
+                                }
+                                Err(e) => tracing::warn!("File notification task panicked: {}", e),
+                            }
                         },
                         |_| cosmic::Action::App(Message::RefreshDevices),
                     );

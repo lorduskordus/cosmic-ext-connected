@@ -94,10 +94,17 @@ pub mod refresh {
 
 /// Notification display constants.
 pub mod notifications {
-    /// Default notification timeout (seconds).
-    pub const DEFAULT_TIMEOUT_SECS: u32 = 5;
-    /// Minimum notification timeout slider value (seconds).
-    pub const MIN_TIMEOUT_SECS: u32 = 1;
-    /// Maximum notification timeout slider value (seconds).
-    pub const MAX_TIMEOUT_SECS: u32 = 30;
+    /// Requested expire_timeout (ms) for normal-urgency toasts (SMS / file / missed-call).
+    /// Large on purpose: COSMIC clamps normal/low to `max_timeout_normal` (default 5s),
+    /// so this defers the real duration to the system setting — honors a future raised
+    /// cap automatically, and stays 5s today. (The daemon clamps; it does NOT ignore.)
+    pub const NORMAL_NOTIFICATION_TIMEOUT_MS: u32 = 30_000;
+
+    /// Display duration (ms) for the Critical incoming-call toast. COSMIC does NOT cap
+    /// urgent notifications (`max_timeout_urgent = None`), so this is the LITERAL on-screen
+    /// time — distinct mechanism from NORMAL_* above despite the equal number. ~30s ≈ the
+    /// Android ring-to-voicemail window. NOT Timeout::Never: Connected has no active
+    /// dismissal on call-end, so Never would leave a stale toast until manual dismiss.
+    /// (True persist-while-ringing + dismissal is v0.7.0 candidate D.3.)
+    pub const CALL_RING_TIMEOUT_MS: u32 = 30_000;
 }
