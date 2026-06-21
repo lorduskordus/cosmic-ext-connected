@@ -1705,7 +1705,7 @@ impl Application for ConnectApplet {
                             widget::text::heading(fl!("no-devices")),
                             widget::text::caption(fl!("no-devices-hint")),
                             widget::button::icon(widget::icon::from_name(
-                                "preferences-system-notifications-symbolic"
+                                "notification-symbolic"
                             ))
                             .on_press(Message::ToggleSettings),
                         ]

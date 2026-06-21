@@ -33,7 +33,7 @@ pub fn view<'a>(
             .gap(sp.space_xxxs)
             .padding(sp.space_xxs),
             widget::tooltip(
-                widget::button::icon(icon::from_name("preferences-system-notifications-symbolic"))
+                widget::button::icon(icon::from_name("notification-symbolic"))
                     .on_press(Message::ToggleSettings),
                 text::caption(fl!("notifications")),
                 widget::tooltip::Position::Bottom,
