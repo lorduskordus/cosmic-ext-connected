@@ -151,6 +151,63 @@ Key points:
 - Static variables NOT shared between applet instances
 - Call dedup key includes event type so `callReceived` and `missedCall` for the same number are treated as distinct notifications
 
+## Duplicate Notifications from KDE Connect
+
+Connected and KDE Connect can notify for the **same** event independently, so a
+user may see each incoming SMS or call announced twice. This is a cross-app
+interaction, not a Connected bug — Connected's notifications are correct; KDE
+Connect simply also raises its own. (File transfers don't duplicate — only
+Connected notifies for those.)
+
+### Mechanism per type
+
+- **SMS** — KDE Connect's **"Receive notifications"** plugin
+  (`kdeconnect_notifications`) mirrors the phone's own notifications to the
+  desktop, including incoming SMS. Connected's SMS toast is generated
+  independently (`sms/store.rs:1237`) from the `conversationUpdated` signal, so
+  both fire for one message.
+- **Calls** — The duplicate is KDE Connect's **telephony** plugin. Connected
+  reads call events from that same plugin's `callReceived` signal, so the source
+  Connected would need to silence is the source it depends on.
+
+### Why it isn't a one-line fix
+
+The obvious workaround — disable the offending KDE Connect plugin — has a real
+cost because that plugin's data feeds Connected's UI:
+
+- The "Receive notifications" plugin's `activeNotifications()`
+  (`kdeconnect-dbus/src/plugins/notifications.rs`, called from
+  `device/fetch.rs:172`) is the **sole** source of `device.notifications`.
+- That field drives the device-page notification list
+  (`device_page.rs:446-461`) and the unread count badges on both the device list
+  (`device_list.rs:232`) and the device page (`device_page.rs:452`).
+
+So disabling the plugin to stop the duplicate SMS toast also **empties the
+device-page notification list and both badges** — all-or-nothing. Disabling the
+telephony plugin likewise removes Connected's own call notifications. Connected's
+SMS toast itself is independent and survives either way.
+
+### Intermittent drop (related, observed v0.6.0)
+
+COSMIC's notification daemon occasionally **drops Connected's own SMS toast**
+when KDE Connect's mirrored notification for the same SMS lands shortly after
+(~360 ms) — a same-event race in the daemon, reproducible on release builds.
+Disabling the "Receive notifications" plugin removes the competing toast and
+makes Connected's reliable, at the cost above. This is the daemon's behavior, not
+a Connected `.show()` failure (the `.show()` succeeds; see the logged-`match`
+note under [Timeout Handling](#timeout-handling)).
+
+### Clean fix (not yet available)
+
+The correct fix is to mute KDE Connect at the COSMIC notification daemon on a
+per-application basis, which keeps the plugin's D-Bus data flowing (so the
+device-page list and badges survive) while suppressing only KDE Connect's toasts.
+COSMIC does not expose per-application notification controls yet. User-facing
+guidance lives in the README under the stable anchor
+`#duplicate-notifications-with-kde-connect` (linked from the in-app Notifications
+page "Learn more"); the in-app hint is intentionally short. Pursuing the upstream
+control is tracked as a v0.7.0 candidate.
+
 ## Unsupported: Incoming Ping Notifications
 
 KDE Connect's ping plugin (`kdeconnect_ping`) does not emit D-Bus signals for incoming pings. When a ping is received, `kdeconnectd` handles it internally and sends a desktop notification directly via `KNotification`, bypassing any D-Bus signal mechanism. The applet cannot detect or replace incoming ping notifications. The ping plugin only exposes `sendPing()` methods (outgoing), not incoming signals.
