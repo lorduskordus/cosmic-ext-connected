@@ -752,7 +752,11 @@ pub fn view_new_message(params: NewMessageParams<'_>) -> Element<'_, Message> {
         && !params.contact_suggestions.is_empty()
     {
         let mut suggestions_col = column![].spacing(sp.space_xxxs);
-        for (name, phone) in params.contact_suggestions.iter() {
+        for (name, phone) in params
+            .contact_suggestions
+            .iter()
+            .take(crate::constants::sms::MAX_SUGGESTIONS_SHOWN)
+        {
             let contact_row = applet::menu_button(
                 row![
                     widget::icon::from_name("contact-new-symbolic").size(20),
@@ -802,8 +806,8 @@ pub fn view_new_message(params: NewMessageParams<'_>) -> Element<'_, Message> {
     column![
         header,
         recipient_row,
-        suggestions_section,
         chips_section,
+        suggestions_section,
         applet::padded_control(message_input),
         send_row,
         widget::space::vertical(),

@@ -24,6 +24,9 @@ pub mod sms {
     /// SMS messages fetched per request (thread open + each older-message page).
     pub const MESSAGES_PER_PAGE: u32 = 10;
 
+    /// Max contact suggestions shown in the new-message recipient dropdown
+    pub const MAX_SUGGESTIONS_SHOWN: usize = 5;
+
     /// Timeout for conversation loading when cache exists (seconds).
     /// Shorter since we only need incremental updates.
     pub const CONVERSATION_TIMEOUT_CACHED_SECS: u64 = 3;
