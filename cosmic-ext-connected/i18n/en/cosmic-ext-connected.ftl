@@ -87,7 +87,6 @@ device-type-tv = TV
 device-type-unknown = Device
 
 # Notification settings sub-page
-notifications = Notifications
 notification-duplicate-hint = Incoming SMS and calls can also trigger KDE Connect's own toasts, so you may see duplicates.
 learn-more = Learn more
 
