@@ -1704,10 +1704,8 @@ impl Application for ConnectApplet {
                         column![
                             widget::text::heading(fl!("no-devices")),
                             widget::text::caption(fl!("no-devices-hint")),
-                            widget::button::icon(widget::icon::from_name(
-                                "notification-symbolic"
-                            ))
-                            .on_press(Message::ToggleSettings),
+                            widget::button::icon(widget::icon::from_name("notification-symbolic"))
+                                .on_press(Message::ToggleSettings),
                         ]
                         .spacing(sp.space_xxs)
                         .align_x(Alignment::Center),
